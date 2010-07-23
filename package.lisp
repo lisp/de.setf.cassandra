@@ -32,7 +32,11 @@
                           :byte :set :list :map :type-of)
 
   (:export
+   :attribute-value
+   :attribute-values
    :keyspace
+   :column-family
+   :batch-mutate
    :check-schema-agreement
    :describe-cluster-name
    :describe-keyspace
