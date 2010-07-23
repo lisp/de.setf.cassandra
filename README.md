@@ -27,7 +27,8 @@ It relies on libraries which are covered by their respective licenses:
 Status
 ======
 
-In dev with mcl 5.2, sbcl 1.0.36, and cassandra 0.6.3/2.1.0.
+In development with mcl 5.2, sbcl 1.0.36, and cassandra 0.6.3/2.1.0.
+At any given moment it ought to build, but it may break.
 
 ---
  [0]: http://wiki.apache.org/cassandra
