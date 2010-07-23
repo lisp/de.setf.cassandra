@@ -21,13 +21,13 @@
 ;;;
 ;;; interface
 
-(defgeneric attribute-value (column-family key column-name) )
+(defgeneric get-attribute (column-family key column-name) )
 
-(defgeneric (setf attribute-value) (value column-family key column-name) )
+(defgeneric set-attribute (value column-family key column-name) )
 
-(defgeneric attribute-values (column-family key &key start finish column-names reversed count) )
+(defgeneric get-attributes (column-family key &key start finish column-names reversed count) )
 
-(defgeneric (setf attribute-values) (values column-family key &key column-names) )
+(defgeneric set-attributes (column-family key &key property-list))
 
 
 (defclass abstract-column-family ()
@@ -77,7 +77,7 @@
 ;;;
 ;;; column family operators expect the column key to map to a sequence of columns.
 
-(defmethod attribute-value ((column-family column-family) key column-name)
+(defmethod get-attribute ((column-family column-family) key column-name)
   (let ((column-path (column-family-columnpath column-family))
         (cosc nil))
     (setf (cassandra::columnpath-column column-path) column-name)
@@ -87,7 +87,7 @@
       (cassandra::columnorsupercolumn-column cosc))))
 
 
-(defmethod (setf attribute-value) (value (family column-family) key column-name)
+(defmethod set-attribute (value (family column-family) key column-name)
   (let ((column-path (column-family-columnpath family)))
     (setf (cassandra::columnpath-column column-path) column-name)
     (insert (column-family-keyspace family)
@@ -95,7 +95,7 @@
             :column-path column-path
             :value value)))
 
-(defmethod (setf attribute-value) ((value null) (column-family column-family) key column-name)
+(defmethod set-attribute ((value null) (column-family column-family) key column-name)
   "Given a null value, delete the column"
   (let ((column-path (column-family-columnpath column-family)))
     (setf (cassandra::columnpath-column column-path) column-name)
@@ -104,20 +104,21 @@
             :column-path column-path)))
 
 
-(defmethod attribute-values ((column-family column-family) key &key (start "") (finish "") column-names reversed
+(defmethod get-attributes ((column-family column-family) key &key (start "") (finish "") column-names reversed
                                             (count (column-family-slice-size column-family)))
     (let ((column-parent (column-family-columnparent column-family))
           (slice-predicate (column-family-slicepredicate column-family))
           (slice-range (column-family-slicerange column-family)))
-      (if column-names
-        (setf (cassandra::slicepredicate-column-names slice-predicate) column-names
-              (cassandra::slicepredicate-slice-range slice-predicate) nil)
-        (setf (cassandra::slicepredicate-column-names slice-predicate) nil
-              (cassandra::slicepredicate-slice-range slice-predicate) slice-range
-              (cassandra::slicerange-start slice-range) start 
-              (cassandra::slicerange-finish slice-range) finish
-              (cassandra::slicerange-reversed slice-range) reversed
-              (cassandra::slicerange-count slice-range) count))
+      (cond (column-names
+             (setf (cassandra::slicepredicate-column-names slice-predicate) column-names)
+             (slot-makunbound slice-predicate 'cassandra::slice-range))
+            (t
+             (slot-makunbound slice-predicate 'cassandra::column-names)
+             (setf (cassandra::slicepredicate-slice-range slice-predicate) slice-range
+                   (cassandra::slicerange-start slice-range) start 
+                   (cassandra::slicerange-finish slice-range) finish
+                   (cassandra::slicerange-reversed slice-range) reversed
+                   (cassandra::slicerange-count slice-range) count)))
       (loop for cosc in (get-slice (column-family-keyspace column-family)
                                    :key key
                                    :column-parent column-parent
@@ -126,12 +127,11 @@
 
 
   
-(defmethod (setf attribute-values) (values (column-family column-family) key &key column-names)
+(defmethod set-attributes ((column-family column-family) key &rest property-list)
   (let ((timestamp (uuid::get-timestamp)))
     (batch-mutate (column-family-keyspace column-family)
                   :mutation-map (thrift:map `(,key . ((,(column-family-name column-family)
-                                                       ,@(loop for column-name in column-names
-                                                               for value in values
+                                                       ,@(loop for (column-name value) on property-list by #'cddr
                                                                when value     ; skip null values
                                                                collect (cassandra:make-mutation
                                                                         :column-or-supercolumn
@@ -145,7 +145,7 @@
 ;;; super-column family method expect the first key to map to a second key sequence, each of which
 ;;; locates a sequence of columns
 
-(defmethod attribute-value ((family super-column-family) (keys cons) column-name)
+(defmethod get-attribute ((family super-column-family) (keys cons) column-name)
   (destructuring-bind (key super-column) keys
     (let ((column-path (column-family-columnpath family))
           (cosc nil))
@@ -157,7 +157,7 @@
       (cassandra::columnorsupercolumn-column cosc)))))
 
 
-(defmethod (setf attribute-value) (value (family super-column-family) (keys cons) column-name)
+(defmethod set-attribute (value (family super-column-family) (keys cons) column-name)
   (destructuring-bind (key super-column) keys
     (let ((column-path (column-family-columnpath family)))
       (setf (cassandra::columnpath-column column-path) column-name
@@ -167,7 +167,7 @@
               :column-path column-path
               :value value))))
 
-(defmethod (setf attribute-value) ((value null) (family super-column-family) (keys cons) column-name)
+(defmethod set-attribute ((value null) (family super-column-family) (keys cons) column-name)
   "Given a null value, delete the column"
   (destructuring-bind (key super-column) keys
     (let ((column-path (column-family-columnpath family)))
@@ -178,7 +178,7 @@
               :column-path column-path))))
 
 
-(defmethod attribute-values ((family super-column-family) (keys cons) &key (start "") (finish "") column-names reversed
+(defmethod get-attributes ((family super-column-family) (keys cons) &key (start "") (finish "") column-names reversed
                              (count (column-family-slice-size family)))
   (destructuring-bind (key super-column) keys
     (let ((column-parent (column-family-columnparent family))
@@ -201,7 +201,7 @@
             collect (cassandra::columnorsupercolumn-column cosc)))))
 
 
-(defmethod attribute-values ((family super-column-family) key &key (start "") (finish "") column-names reversed
+(defmethod get-attributes ((family super-column-family) key &key (start "") (finish "") column-names reversed
                              (count (column-family-slice-size family)))
   "A single key applies "
     (let ((column-parent (column-family-columnparent family))
@@ -227,8 +227,8 @@
             else collect (cassandra::columnorsupercolumn-column cosc))))
 
 
-  
-(defmethod (setf attribute-values) (values (family super-column-family) key &key column-names)
+#+ignore
+(defmethod set-attributes (values (family super-column-family) key &key column-names)
   (let ((timestamp (uuid::get-timestamp)))
     (batch-mutate (column-family-keyspace family)
                   :mutation-map (thrift:map `(,key . ((,(column-family-name family)

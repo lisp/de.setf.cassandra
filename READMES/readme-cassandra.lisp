@@ -2,12 +2,13 @@
 
 (in-package :cl-user)
 
-#+(or ccl sbcl sbcl) /development/source/library/
-(load "build-init.lisp")
+#+(or ccl sbcl sbcl)
+(load "/development/source/library/build-init.lisp")
 
 ;;; ! first, select the api version in the cassandra system definition
 ;;; as only one should be loaded at a time.
-(asdf:load-system :de.setf.cassandra)
+(let ((*compile-verbose* nil))
+  (asdf:load-system :de.setf.cassandra))
 
 (in-package :de.setf.cassandra)
 
@@ -42,10 +43,14 @@
                                         collect (cons key value)))))
 
 
-(defun describe-cassandra (location &optional (stream *standard-output*))
-  "Print the first-order store metadata for a cassandra LOCATION."
-
-  (thrift:with-client (cassandra location)
+(defgeneric describe-cassandra (location &optional stream)
+  (:documentation "Print the first-order store metadata for a cassandra LOCATION.")
+  
+  (:method ((location puri:uri) &optional (stream *standard-output*))
+    (thrift:with-client (cassandra location)
+      (describe-cassandra cassandra stream)))
+  
+  (:method ((cassandra thrift:binary-protocol) &optional (stream *standard-output*))
     (let* ((keyspace-names (cassandra:describe-keyspaces cassandra))
            (cluster (cassandra:describe-cluster-name cassandra))
            (version (cassandra:describe-version cassandra))
@@ -61,7 +66,8 @@
       (format stream "~&connection to : ~a" cassandra)
       (format stream "~&version : ~a" version)
       (format stream "~&cluster : ~a" cluster)
-      (format stream "~&keyspaces~{~{~%~%space: ~a~@{~%  ~{~a :~@{~20t~:w~^~%~}~}~}~}~}" keyspace-descriptions))))
+      (format stream "~&keyspaces~{~{~%~%space: ~a~@{~%  ~{~a :~@{~20t~:w~^~%~}~}~}~}~}"
+              keyspace-descriptions))))
 
 ;;; (describe-cassandra *c-location*)
 
@@ -70,6 +76,7 @@
 (defparameter *ks* (keyspace *c-location* :name "Keyspace1"))
 (defparameter *standard2* (make-instance 'column-family :keyspace *ks* :name "Standard2"))
 
+;;; (describe-cassandra *ks*)
 
 ;;; simple, column-based access
 
@@ -102,4 +109,4 @@
 (setf (attribute-values *standard2* "user3" :column-names '("some" "little" "details"))
       '("come" "to" "light"))
 
-(attribute-values *standard2* "user3")
+(mapcar #'cassandra::column-value (attribute-values *standard2* "user3"))

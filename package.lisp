@@ -32,8 +32,10 @@
                           :byte :set :list :map :type-of)
 
   (:export
-   :attribute-value
-   :attribute-values
+   :get-attribute
+   :set-attribute
+   :get-attributes
+   :set-attributes
    :keyspace
    :column-family
    :batch-mutate
