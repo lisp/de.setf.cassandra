@@ -102,15 +102,21 @@
       collect (cons column-name (cassandra::column-value (get-attribute *standard2* "user1" column-name))))
 
 ;;; and 'sliced'
-(mapcar #'cassandra::column-value (get-attributes *standard2* "user1"))
+(get-attribute-values *standard2* "user1")
 
-(mapcar #'cassandra::column-value (attribute-values *standard2* "user1" :start "ninth" :finish "second"))
+(get-attribute-values *standard2* "user1" :start "ninth" :finish "second")
 
-(mapcar #'cassandra::column-value (attribute-values *standard2* "user1" :start "ninth" :count 2))
+(get-attribute-values *standard2* "user1" :start "ninth" :count 2)
 
 (set-attributes *standard2* "user3" "some" "little" "details" "come" "to" "light")
 
-(mapcar #'cassandra::column-value (get-attributes *standard2* "user3"))
+(get-attribute-values *standard2* "user3")
+;;; => ("light" "to" "come")
+
+(set-attribute *standard2* "user3" "some" nil)
+
+(get-attribute-values *standard2* "user3")
+;;; => ("light" "come")
 
 
 ;;; super column access
@@ -119,7 +125,7 @@
 
 (set-attribute *super2* '("user1" "collection1") "first" "1")
 
-(cassandra::column-value (get-attribute *super2* '("user1" "collection1") "first"))
+(get-attribute-value *super2* '("user1" "collection1") "first")
 
 (set-attribute *super2* '("user1" "collection2") "second" "2")
 
@@ -132,9 +138,9 @@
 
 (set-attributes *super2* '("user1" "collection3") "some" "little" "details" "come" "to" "light")
 
-(mapcar #'cassandra::column-value (get-attributes *super2* "user1"))
+(get-attribute-values *super2* "user1")
 ;;; => ("1" "2" "come" "little" "light")
 
 
-(mapcar #'cassandra::column-value (get-attributes *super2* '("user1" "collection3")))
+(get-attribute-values *super2* '("user1" "collection3"))
 ;;; => ("come" "little" "light")
