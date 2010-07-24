@@ -10,6 +10,7 @@
 (let ((*compile-verbose* nil))
   (asdf:load-system :de.setf.cassandra))
 
+
 (in-package :de.setf.cassandra)
 
 (defparameter *c-location*
@@ -74,39 +75,66 @@
 ;;; work with Keyspace2
 
 (defparameter *ks* (keyspace *c-location* :name "Keyspace1"))
-(defparameter *standard2* (make-instance 'column-family :keyspace *ks* :name "Standard2"))
 
 ;;; (describe-cassandra *ks*)
 
-;;; simple, column-based access
+;;; simple column access
 
-(insert *standard2* :key "user1" :column "one" :value "2")
-(insert *standard2* :key "user2" :column "one" :value "1")
+(defparameter *standard2* (make-instance 'column-family :keyspace *ks* :name "Standard2"))
+
+(set-attribute *standard2* "user1" "one" "2")
+(set-attribute *standard2* "user2" "one" "1")
 
 (get *standard2* :key "user1" :column "one")
 
 
 ;;; in terms of attribute-value
 ;;; individual
-(attribute-value *standard2* "user1" "one")
+(describe (get-attribute *standard2* "user1" "one"))
 
-(princ (nth-value 1 (ignore-errors (attribute-value *standard2* "user" "one"))))
+(princ (nth-value 1 (ignore-errors (get-attribute *standard2* "user" "one"))))
 
 (dotimes (x 10)
-  (setf (attribute-value *standard2* "user1" (format nil "~:r" x)) (princ-to-string x)))
+  (set-attribute *standard2* "user1" (format nil "~:r" x) (princ-to-string x)))
 
 (loop for x from 0 below 10
       for column-name = (format nil "~:r" x)
-      collect (cons column-name (attribute-value *standard2* "user1" column-name)))
+      collect (cons column-name (cassandra::column-value (get-attribute *standard2* "user1" column-name))))
 
 ;;; and 'sliced'
-(attribute-values *standard2* "user1")
+(mapcar #'cassandra::column-value (get-attributes *standard2* "user1"))
 
-(attribute-values *standard2* "user1" :start "ninth" :finish "second")
+(mapcar #'cassandra::column-value (attribute-values *standard2* "user1" :start "ninth" :finish "second"))
 
-(attribute-values *standard2* "user1" :start "ninth" :count 2)
+(mapcar #'cassandra::column-value (attribute-values *standard2* "user1" :start "ninth" :count 2))
 
-(setf (attribute-values *standard2* "user3" :column-names '("some" "little" "details"))
-      '("come" "to" "light"))
+(set-attributes *standard2* "user3" "some" "little" "details" "come" "to" "light")
 
-(mapcar #'cassandra::column-value (attribute-values *standard2* "user3"))
+(mapcar #'cassandra::column-value (get-attributes *standard2* "user3"))
+
+
+;;; super column access
+
+(defparameter *super2* (make-instance 'super-column-family :keyspace *ks* :name "Super2"))
+
+(set-attribute *super2* '("user1" "collection1") "first" "1")
+
+(cassandra::column-value (get-attribute *super2* '("user1" "collection1") "first"))
+
+(set-attribute *super2* '("user1" "collection2") "second" "2")
+
+
+(mapcar #'cassandra::column-value (get-attributes *super2* '("user1" "collection1")))
+
+
+(mapcar #'cassandra::column-value (get-attributes *super2* "user1"))
+;;; => ("1" "2")
+
+(set-attributes *super2* '("user1" "collection3") "some" "little" "details" "come" "to" "light")
+
+(mapcar #'cassandra::column-value (get-attributes *super2* "user1"))
+;;; => ("1" "2" "come" "little" "light")
+
+
+(mapcar #'cassandra::column-value (get-attributes *super2* '("user1" "collection3")))
+;;; => ("come" "little" "light")
