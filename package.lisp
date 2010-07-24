@@ -32,8 +32,10 @@
                           :byte :set :list :map :type-of)
 
   (:export
+   :get-attribute-value
    :get-attribute
    :set-attribute
+   :get-attribute-values
    :get-attributes
    :set-attributes
    :keyspace

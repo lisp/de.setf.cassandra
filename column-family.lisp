@@ -2,7 +2,7 @@
 
 (in-package :de.setf.cassandra)
 
-;;;  This file defines column family operators for the 'de.setf.cassandra' library component.
+;;;  This file defines column family operators for the 'de.setf.cassandra' library.
 ;;;  (c) 2010 james anderson
 ;;;
 ;;;  'de.setf.cassandra' is free software: you can redistribute it and/or modify
@@ -21,14 +21,55 @@
 ;;;
 ;;; interface
 
-(defgeneric get-attribute (column-family key column-name) )
+(defgeneric get-attribute (column-family key column-name)
+  (:documentation "Given a COLUMN-FAMILY, KEY, and COLUMN-NAME, retrieve the designated attribute 'column'
+ from the family's store. This returns the column struct, which comprises the name, value, and timestamp.
+ A simple column-family requires atomic keys, while a super-column permits either the atomic family key or
+ a list of family-key and super-column key."))
 
-(defgeneric set-attribute (value column-family key column-name) )
 
-(defgeneric get-attributes (column-family key &key start finish column-names reversed count) )
+(defgeneric get-attribute-value (column-family key column-name)
+  (:documentation "Given a COLUMN-FAMILY, KEY, and COLUMN-NAME, retrieve the designated attribute value
+ from the family's store. This retrieves the attribute 'column' and returns just its value.")
 
-(defgeneric set-attributes (column-family key &key property-list))
+  (:method (column-family key column-name)
+    (cassandra::column-value (get-attribute column-family key column-name))))
 
+
+(defgeneric set-attribute (column-family key column-name value &optional timestamp)
+  (:documentation "Given a COLUMN-FAMILY, KEY, COLUMN-NAME, VALUE, and an optional TIMESTAMP, store the
+ designated attribute 'column' in the family's store. The timestamp defaults to the UUID-V1 timestamp.
+ A simple column-family requires atomic keys, while a super-column requires a list of family-key and
+ super-column key.") )
+
+
+(defgeneric get-attributes (column-family key &key start finish column-names reversed count)
+  (:documentation "Given a COLUMN-FAMILY, KEY, and a combination of START and FINISH column names, a
+ COLUMN-NAME list, REVERSED indicator, and a COUNT, retrieve the designated attribute 'columns' from the 
+ family's store. (see cassandra:get-silce.) A simple column-family requires atomic an key, while a super-column
+ permits either the atomic family key or a list of family-key and super-column key."))
+
+
+(defgeneric get-attribute-values (column-family key &key start finish column-names reversed count)
+  (:documentation "Given a COLUMN-FAMILY, a KEY, and constraints as for get-attributes, retrieve the
+ attribute 'columns' and of those the respective values.")
+
+  (:method (column-family key &rest args)
+    (declare (dynamic-extent args))
+    (mapcar #'cassandra::column-value (apply #'get-attributes column-family key args))))
+
+
+(defgeneric set-attributes (column-family key &rest property-list)
+  (:documentation "Given a COLUMN-FAMILY, a key, and a property list of column names and values,
+ store the designated attribute 'columns' in the family's store. The first property can be :timestamp,
+ to specify the column timestamp, for which the default is the UUID-V1 timestamp."))
+
+
+;;;
+;;; classes
+;;;  abstract-column-famiy
+;;;  column-family
+;;;  super-column-family
 
 (defclass abstract-column-family ()
   ((keyspace
@@ -58,7 +99,7 @@
   ())
 
 
-;;;
+;;; generic operations
 
 (defmethod initialize-instance :after ((instance abstract-column-family) &key
                                        (slice-size (keyspace-slice-size (column-family-keyspace instance))))
@@ -87,16 +128,18 @@
       (cassandra::columnorsupercolumn-column cosc))))
 
 
-(defmethod set-attribute (value (family column-family) key column-name)
+(defmethod set-attribute ((family column-family) key column-name value &optional (timestamp (uuid::get-timestamp)))
   (let ((column-path (column-family-columnpath family)))
     (setf (cassandra::columnpath-column column-path) column-name)
     (insert (column-family-keyspace family)
             :key key
             :column-path column-path
-            :value value)))
+            :value value
+            :timestamp timestamp)))
 
-(defmethod set-attribute ((value null) (column-family column-family) key column-name)
+(defmethod set-attribute ((column-family column-family) key column-name (value null) &optional timestamp)
   "Given a null value, delete the column"
+  (declare (ignore timestamp))
   (let ((column-path (column-family-columnpath column-family)))
     (setf (cassandra::columnpath-column column-path) column-name)
     (remove (column-family-keyspace column-family)
@@ -128,7 +171,8 @@
 
   
 (defmethod set-attributes ((column-family column-family) key &rest property-list)
-  (let ((timestamp (uuid::get-timestamp)))
+  (let ((timestamp (cond ((eq (first property-list) :timestamp) (pop property-list) (pop property-list))
+                         (t (uuid::get-timestamp)))))
     (batch-mutate (column-family-keyspace column-family)
                   :mutation-map (thrift:map `(,key . ((,(column-family-name column-family)
                                                        ,@(loop for (column-name value) on property-list by #'cddr
@@ -157,7 +201,7 @@
       (cassandra::columnorsupercolumn-column cosc)))))
 
 
-(defmethod set-attribute (value (family super-column-family) (keys cons) column-name)
+(defmethod set-attribute ((family super-column-family) (keys cons) column-name column-value &optional (timestamp (uuid::get-timestamp)))
   (destructuring-bind (key super-column) keys
     (let ((column-path (column-family-columnpath family)))
       (setf (cassandra::columnpath-column column-path) column-name
@@ -165,10 +209,12 @@
       (insert (column-family-keyspace family)
               :key key
               :column-path column-path
-              :value value))))
+              :value column-value
+              :timestamp timestamp))))
 
-(defmethod set-attribute ((value null) (family super-column-family) (keys cons) column-name)
+(defmethod set-attribute ((family super-column-family) (keys cons) column-name (value null) &optional timestamp)
   "Given a null value, delete the column"
+  (declare (ignore timestamp))
   (destructuring-bind (key super-column) keys
     (let ((column-path (column-family-columnpath family)))
       (setf (cassandra::columnpath-column column-path) column-name
@@ -180,6 +226,7 @@
 
 (defmethod get-attributes ((family super-column-family) (keys cons) &key (start "") (finish "") column-names reversed
                              (count (column-family-slice-size family)))
+  "Where the key is a list, the first element is the family key and the second is the syper-column key."
   (destructuring-bind (key super-column) keys
     (let ((column-parent (column-family-columnparent family))
           (slice-predicate (column-family-slicepredicate family))
@@ -203,7 +250,7 @@
 
 (defmethod get-attributes ((family super-column-family) key &key (start "") (finish "") column-names reversed
                              (count (column-family-slice-size family)))
-  "A single key applies "
+  "Where the key is atomic, it applies to all supercolumns."
     (let ((column-parent (column-family-columnparent family))
           (slice-predicate (column-family-slicepredicate family))
           (slice-range (column-family-slicerange family)))
@@ -227,18 +274,22 @@
             else collect (cassandra::columnorsupercolumn-column cosc))))
 
 
-#+ignore
-(defmethod set-attributes (values (family super-column-family) key &key column-names)
-  (let ((timestamp (uuid::get-timestamp)))
-    (batch-mutate (column-family-keyspace family)
-                  :mutation-map (thrift:map `(,key . ((,(column-family-name family)
-                                                       ,@(loop for column-name in column-names
-                                                               for value in values
-                                                               when value     ; skip null values
-                                                               collect (cassandra:make-mutation
-                                                                        :column-or-supercolumn
-                                                                        (cassandra:make-columnorsupercolumn
-                                                                         :column (cassandra:make-column
-                                                                                  :name column-name
-                                                                                  :value value
-                                                                                  :timestamp timestamp)))))))))))
+(defmethod set-attributes ((family super-column-family) (keys cons) &rest property-list)
+  (destructuring-bind (key super-column) keys
+    (let ((timestamp (cond ((eq (first property-list) :timestamp) (pop property-list) (pop property-list))
+                         (t (uuid::get-timestamp)))))
+      (batch-mutate (column-family-keyspace family)
+                    :mutation-map (thrift:map `(,key . ((,(column-family-name family)
+                                                         ,(cassandra:make-mutation
+                                                           :column-or-supercolumn
+                                                           (cassandra:make-columnorsupercolumn
+                                                            :super-column 
+                                                            (cassandra:make-supercolumn
+                                                             :name super-column
+                                                             :columns
+                                                             (loop for (column-name value) on property-list by #'cddr
+                                                                   when value     ; skip null values
+                                                                   collect (cassandra:make-column
+                                                                            :name column-name
+                                                                            :value value
+                                                                            :timestamp timestamp)))))))))))))
