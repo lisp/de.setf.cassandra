@@ -33,8 +33,6 @@
 (cassandra:describe-version *c*)
 ;; => "2.1.0"
 
-(close *c*)
-
 (loop for space in (cassandra:describe-keyspaces *c*)
       collect (loop for key being each hash-key of (cassandra:describe-keyspace *c* space)
                     using (hash-value value)
@@ -43,6 +41,8 @@
                                         using (hash-value value)
                                         collect (cons key value)))))
 
+
+(close *c*)
 
 (defgeneric describe-cassandra (location &optional stream)
   (:documentation "Print the first-order store metadata for a cassandra LOCATION.")
@@ -99,25 +99,26 @@
 
 (loop for x from 0 below 10
       for column-name = (format nil "~:r" x)
-      collect (cons column-name (cassandra::column-value (get-attribute *standard2* "user1" column-name))))
+      collect (cons column-name (get-attribute *standard2* "user1" column-name)))
 
 ;;; and 'sliced'
-(get-attribute-values *standard2* "user1")
+(get-attributes *standard2* "user1")
 
-(get-attribute-values *standard2* "user1" :start "ninth" :finish "second")
+(get-attributes *standard2* "user1" :start "ninth" :finish "second")
 
-(get-attribute-values *standard2* "user1" :start "ninth" :count 2)
+(get-attributes *standard2* "user1" :start "ninth" :count 2)
 
 (set-attributes *standard2* "user3" "some" "little" "details" "come" "to" "light")
 
-(get-attribute-values *standard2* "user3")
+(get-attributes *standard2* "user3")
 ;;; => ("light" "to" "come")
 
 (set-attribute *standard2* "user3" "some" nil)
 
-(get-attribute-values *standard2* "user3")
+(get-attributes *standard2* "user3")
 ;;; => ("light" "come")
 
+(get-columns *standard2* "user3")
 
 ;;; super column access
 
@@ -130,17 +131,17 @@
 (set-attribute *super2* '("user1" "collection2") "second" "2")
 
 
-(mapcar #'cassandra::column-value (get-attributes *super2* '("user1" "collection1")))
+(get-attributes *super2* '("user1" "collection1"))
 
 
-(mapcar #'cassandra::column-value (get-attributes *super2* "user1"))
+(get-attributes *super2* "user1")
 ;;; => ("1" "2")
 
 (set-attributes *super2* '("user1" "collection3") "some" "little" "details" "come" "to" "light")
 
-(get-attribute-values *super2* "user1")
+(get-attributes *super2* "user1")
 ;;; => ("1" "2" "come" "little" "light")
 
 
-(get-attribute-values *super2* '("user1" "collection3"))
+(get-attributes *super2* '("user1" "collection3"))
 ;;; => ("come" "little" "light")
