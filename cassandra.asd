@@ -43,12 +43,18 @@
  [2]: http://github.com/lisp/de.setf.thrift
  ")
 
-;;; asdf did not notice that it should recompile the api for thrift changes
-#+(or)
+(pushnew :cassandra-thrift-2-1-0 *features*)
+
+
+#+(or)  ;; when asdf does not notice that it should recompile the api for thrift changes
 (load (compile-file (asdf::component-pathname (asdf::find-component
                                                (asdf:find-component
                                                 (asdf:find-system :de.setf.cassandra)
                                                 "gen-cl")
                                                "cassandra-2-1-0-types"))))
 
-(pushnew :cassandra-thrift-2-1-0 *features*)
+#+(or)  ;; generate documentation
+(progn
+  (asdf:load-system :de.setf.documentation)
+  (setf.documentation:document ':de.setf.cassandra #p"LIBRARY:20100724;")
+  )
