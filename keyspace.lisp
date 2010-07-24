@@ -20,22 +20,25 @@
 
 
 (defclass keyspace (thrift:binary-protocol)
-  ((slice-size
+  ((name
+    :initarg :name :initform (error "name is required.")
+    :accessor keyspace-name
+    :documentation "Specifies the keyspace in the store.")
+   (slice-size
      :initarg :slice-size :initform 100
      :accessor keyspace-slice-size
-     :type i32)
+     :type i32
+     :documentation "The default slice size to use for retrieval operations which return a list of values.")
    (consistency-level
      :initarg :consitency-level :initform cassandra:consistency-level.one
      :type (enum cassandra:consistency-level)
-     :accessor keyspace-consistency-level)
-   (name
-    :initarg :name :initform nil
-    :accessor keyspace-name))
+     :accessor keyspace-consistency-level
+     :documentation "The default cassandra consistency level to use for store operations.
+ The default value is cassandra:consistency-level.one."))
 
-  (:documentation "A thrift protocol to a cassandra instance for a particular keyspace.
- Provides cached state and defaults for 
+  (:documentation "A keyspace represents thrift protocol connection to a cassandra instance for access to 
+ a particular keyspace. It provides cached state and defaults for 
  * name : a string designating a keyspace
- ;;; break this into individual option slots
  * consistency-level : the default level for operations
  * siice-size : the default slice size for retrieveal operations
 
@@ -43,7 +46,7 @@
  accept arguments as keywords, provides defaults for the keyspace, consistency level, and
  timestamps, and delegates to the thrift-based positional request operators.
 
- In addition to the standard interface, it provides composite opertors:
+ In addition to the standard interface, it provides composite operators:
     insert-data
 
  The current interface corresponds to the 2.1.0 thrift version, one cassandra 0.7 appears with
@@ -51,11 +54,11 @@
 
 
 (defgeneric keyspace (location &key protocol direction element-type &allow-other-keys)
-  (:documentation "Open a client connection to a cassandra thrift service.")
+  (:documentation "Open a client connection to a cassandra thrift service and instantiate a keyspace
+ and bind it to a named keyspace in the store.")
 
   (:method ((location t) &rest args &key (protocol 'keyspace) &allow-other-keys)
     (declare (dynamic-extent args))
-    (print args)
     (apply #'thrift:client location :protocol protocol args)))
 
 
@@ -177,13 +180,6 @@
 
 (defmethod describe-splits ((keyspace keyspace) &key start-token end-token key-per-split)
   (cassandra:describe-splits keyspace start-token end-token key-per-split))
-
-
-;;;
-;;; additional operators
-
-(defmethod insert-data ((keyspace keyspace) data &key (timestamp (uuid::get-timestamp)))
-  data timestamp)
 
 
 

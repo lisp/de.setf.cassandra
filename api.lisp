@@ -135,17 +135,5 @@
 #+cassandra-thrift-8
 (defgeneric system-rename-keyspace (protcol-connection old-name new-name))
 
-;;;
-;;; additional operators
-
-(defgeneric insert-data (protocol data &key timestamp)
-  (:documentation "Insert DATA inot a cassandra repositoy via the PROTOCOL connection.
- Generate a default time UUID if none is given.
- Compile the data into a batch-mutate specification and perform as a single mutation.
-
- See cassandra.batch-mutate."))
-
-
-
 
                                 
