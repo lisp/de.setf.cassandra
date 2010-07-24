@@ -32,13 +32,6 @@
                           :byte :set :list :map :type-of)
 
   (:export
-   :get-attribute-value
-   :get-attribute
-   :set-attribute
-   :get-attribute-values
-   :get-attributes
-   :set-attributes
-   :keyspace
    :column-family
    :batch-mutate
    :check-schema-agreement
@@ -49,16 +42,22 @@
    :describe-splits
    :describe-version
    :get
-   :get-slice
+   :get-attribute
+   :get-attributes
+   :get-column
+   :get-columns
    :get-count
    :get-range-slices
+   :get-slice
    :insert
+   :keyspace
    :login
    :multiget
    :multiget-count
    :multiget-slice
    :remove
-   :set-keyspace
+   :set-attribute
+   :set-attributes
    :system-add-column-family
    :system-add-keyspace
    :system-drop-column-family

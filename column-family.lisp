@@ -21,19 +21,16 @@
 ;;;
 ;;; interface
 
-(defgeneric get-attribute (column-family key column-name)
+(defgeneric get-column (column-family key column-name)
   (:documentation "Given a COLUMN-FAMILY, KEY, and COLUMN-NAME, retrieve the designated attribute 'column'
  from the family's store. This returns the column struct, which comprises the name, value, and timestamp.
  A simple column-family requires atomic keys, while a super-column permits either the atomic family key or
  a list of family-key and super-column key."))
 
 
-(defgeneric get-attribute-value (column-family key column-name)
+(defgeneric get-attribute (column-family key column-name)
   (:documentation "Given a COLUMN-FAMILY, KEY, and COLUMN-NAME, retrieve the designated attribute value
- from the family's store. This retrieves the attribute 'column' and returns just its value.")
-
-  (:method (column-family key column-name)
-    (cassandra::column-value (get-attribute column-family key column-name))))
+ from the family's store. This retrieves the attribute 'column' and returns just its value."))
 
 
 (defgeneric set-attribute (column-family key column-name value &optional timestamp)
@@ -43,20 +40,16 @@
  super-column key.") )
 
 
-(defgeneric get-attributes (column-family key &key start finish column-names reversed count)
+(defgeneric get-columns (column-family key &key start finish column-names reversed count)
   (:documentation "Given a COLUMN-FAMILY, KEY, and a combination of START and FINISH column names, a
  COLUMN-NAME list, REVERSED indicator, and a COUNT, retrieve the designated attribute 'columns' from the 
  family's store. (see cassandra:get-silce.) A simple column-family requires atomic an key, while a super-column
  permits either the atomic family key or a list of family-key and super-column key."))
 
 
-(defgeneric get-attribute-values (column-family key &key start finish column-names reversed count)
+(defgeneric get-attributes (column-family key &key start finish column-names reversed count)
   (:documentation "Given a COLUMN-FAMILY, a KEY, and constraints as for get-attributes, retrieve the
- attribute 'columns' and of those the respective values.")
-
-  (:method (column-family key &rest args)
-    (declare (dynamic-extent args))
-    (mapcar #'cassandra::column-value (apply #'get-attributes column-family key args))))
+ attribute 'columns' and of those the respective values."))
 
 
 (defgeneric set-attributes (column-family key &rest property-list)
@@ -74,29 +67,49 @@
 (defclass abstract-column-family ()
   ((keyspace
     :initform (error "keyspace is required.") :initarg :keyspace
-    :reader column-family-keyspace)
+    :reader column-family-keyspace
+    :type keyspace
+    :documentation "The column's keyspace instance. All operations are delegated through this keyspace
+     to the respective store.")
    (name
     :initform (error "name is required.") :initarg :name
-    :accessor column-family-name)
+    :accessor column-family-name
+    :documentation "The column family name.[http://wiki.apache.org/cassandra/DataModel#Column_Families].")
    (slice-size
      :accessor column-family-slice-size
-     :type i32)
+     :type i32
+     :documentation "The default count to use for retrieval operations which return multiple values.
+      If no value is provided, the default is adopted from the column family's key space.")
    (columnpath
-    :reader column-family-columnpath)
+    :reader column-family-columnpath
+    :documentation "A cached column path[http://wiki.apache.org/cassandra/API#ColumnPath] to be used
+     for access operations. The super_column or column field is used as appropriate for the context.")
    (columnparent
-    :reader column-family-columnparent)
+    :reader column-family-columnparent
+    :documentation "A cached column parent[http://wiki.apache.org/cassandra/API#ColumnParent] to be used
+     for access operations.")
    (slicepredicate
-    :reader column-family-slicepredicate)
+    :reader column-family-slicepredicate
+    :documentation "A cached slice predicate[http://wiki.apache.org/cassandra/API#SlicePredicate] to be used
+     for access operations. The column_names or slice_range field is set as appropraite for the operation
+     arguments.")
    (slicerange
-    :reader column-family-slicerange)))
+    :reader column-family-slicerange
+    :documentation "A cachedslice range[http://wiki.apache.org/cassandra/API#SliceRange] to be used together
+     with the slice predicate for access operations which specify a key range."))
+
+  (:documentation "The abstract class defines the slots shared by the column-family and super-column-family
+ classes to bind the store keyspace, the family name and the structs and parameters used in access operations."))
 
 
 (defclass column-family (abstract-column-family)
-  ())
+  ()
+  (:documentation "A column-family represents a single-level cassandra hash."))
 
 
 (defclass super-column-family (abstract-column-family)
-  ())
+  ()
+  (:documentation "A super-column-family represents a two-level cassandra hash."))
 
 
 ;;; generic operations
@@ -115,10 +128,19 @@
         slice-size))
 
 
+(defmethod get-attribute ((column-family abstract-column-family) key column-name)
+  (cassandra::column-value (get-column column-family key column-name)))
+
+
+(defmethod get-attributes ((column-family abstract-column-family) key &rest args)
+  (declare (dynamic-extent args))
+  (mapcar #'cassandra::column-value (apply #'get-columns column-family key args)))
+
+
 ;;;
 ;;; column family operators expect the column key to map to a sequence of columns.
 
-(defmethod get-attribute ((column-family column-family) key column-name)
+(defmethod get-column ((column-family column-family) key column-name)
   (let ((column-path (column-family-columnpath column-family))
         (cosc nil))
     (setf (cassandra::columnpath-column column-path) column-name)
@@ -147,7 +169,7 @@
             :column-path column-path)))
 
 
-(defmethod get-attributes ((column-family column-family) key &key (start "") (finish "") column-names reversed
+(defmethod get-columns ((column-family column-family) key &key (start "") (finish "") column-names reversed
                                             (count (column-family-slice-size column-family)))
     (let ((column-parent (column-family-columnparent column-family))
           (slice-predicate (column-family-slicepredicate column-family))
@@ -189,7 +211,7 @@
 ;;; super-column family method expect the first key to map to a second key sequence, each of which
 ;;; locates a sequence of columns
 
-(defmethod get-attribute ((family super-column-family) (keys cons) column-name)
+(defmethod get-column ((family super-column-family) (keys cons) column-name)
   (destructuring-bind (key super-column) keys
     (let ((column-path (column-family-columnpath family))
           (cosc nil))
@@ -224,7 +246,7 @@
               :column-path column-path))))
 
 
-(defmethod get-attributes ((family super-column-family) (keys cons) &key (start "") (finish "") column-names reversed
+(defmethod get-columns ((family super-column-family) (keys cons) &key (start "") (finish "") column-names reversed
                              (count (column-family-slice-size family)))
   "Where the key is a list, the first element is the family key and the second is the syper-column key."
   (destructuring-bind (key super-column) keys
@@ -248,7 +270,7 @@
             collect (cassandra::columnorsupercolumn-column cosc)))))
 
 
-(defmethod get-attributes ((family super-column-family) key &key (start "") (finish "") column-names reversed
+(defmethod get-columns ((family super-column-family) key &key (start "") (finish "") column-names reversed
                              (count (column-family-slice-size family)))
   "Where the key is atomic, it applies to all supercolumns."
     (let ((column-parent (column-family-columnparent family))
