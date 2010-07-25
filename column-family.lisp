@@ -134,7 +134,13 @@
 
 (defmethod get-attributes ((column-family abstract-column-family) key &rest args)
   (declare (dynamic-extent args))
-  (mapcar #'cassandra::column-value (apply #'get-columns column-family key args)))
+  (labels ((column-value (object)
+             (typecase object
+               (cons (cons (column-value (first object)) (column-value (rest object))))
+               (cassandra::column (cons (cassandra::column-name object)
+                                        (cassandra::column-value object)))
+               (t object))))
+    (mapcar #'column-value (apply #'get-columns column-family key args))))
 
 
 ;;;
@@ -246,7 +252,7 @@
               :column-path column-path))))
 
 
-(defmethod get-columns ((family super-column-family) (keys cons) &key (start "") (finish "") column-names reversed
+(defmethod get-columns ((family super-column-family) (keys cons) &key (start "") (finish "") (column-names nil cn-s) reversed
                              (count (column-family-slice-size family)))
   "Where the key is a list, the first element is the family key and the second is the syper-column key."
   (destructuring-bind (key super-column) keys
@@ -254,15 +260,16 @@
           (slice-predicate (column-family-slicepredicate family))
           (slice-range (column-family-slicerange family)))
       (setf (cassandra::columnparent-super-column column-parent) super-column)
-      (if column-names
-        (setf (cassandra::slicepredicate-column-names slice-predicate) column-names
-              (cassandra::slicepredicate-slice-range slice-predicate) nil)
-        (setf (cassandra::slicepredicate-column-names slice-predicate) nil
-              (cassandra::slicepredicate-slice-range slice-predicate) slice-range
-              (cassandra::slicerange-start slice-range) start 
-              (cassandra::slicerange-finish slice-range) finish
-              (cassandra::slicerange-reversed slice-range) reversed
-              (cassandra::slicerange-count slice-range) count))
+      (cond (cn-s
+             (setf (cassandra::slicepredicate-column-names slice-predicate) column-names)
+             (slot-makunbound slice-predicate 'cassandra::slice-range))
+            (t
+             (slot-makunbound slice-predicate 'cassandra::column-names)
+             (setf (cassandra::slicepredicate-slice-range slice-predicate) slice-range
+                   (cassandra::slicerange-start slice-range) start 
+                   (cassandra::slicerange-finish slice-range) finish
+                   (cassandra::slicerange-reversed slice-range) reversed
+                   (cassandra::slicerange-count slice-range) count)))
       (loop for cosc in (get-slice (column-family-keyspace family)
                                    :key key
                                    :column-parent column-parent
@@ -270,14 +277,14 @@
             collect (cassandra::columnorsupercolumn-column cosc)))))
 
 
-(defmethod get-columns ((family super-column-family) key &key (start "") (finish "") column-names reversed
+(defmethod get-columns ((family super-column-family) key &key (start "") (finish "") (column-names nil cn-s) reversed
                              (count (column-family-slice-size family)))
   "Where the key is atomic, it applies to all supercolumns."
     (let ((column-parent (column-family-columnparent family))
           (slice-predicate (column-family-slicepredicate family))
           (slice-range (column-family-slicerange family)))
       (slot-makunbound column-parent 'cassandra::super-column)
-      (cond (column-names
+      (cond (cn-s
              (setf (cassandra::slicepredicate-column-names slice-predicate) column-names)
              (slot-makunbound slice-predicate 'cassandra::slice-range))
             (t
@@ -294,6 +301,37 @@
             if (cassandra::columnorsupercolumn-super-column cosc)
             append (cassandra::supercolumn-columns (cassandra::columnorsupercolumn-super-column cosc))
             else collect (cassandra::columnorsupercolumn-column cosc))))
+
+(defmethod get-columns ((family super-column-family) (key null) &key (start "") (finish "") (column-names nil cn-s) reversed
+                             (count (column-family-slice-size family)))
+  "Where the key is null, it applies to all keys and all supercolumns."
+    (let ((column-parent (column-family-columnparent family))
+          (slice-predicate (column-family-slicepredicate family))
+          (key-range (cassandra:make-keyrange :start-key "" :end-key "" :count count))
+          (slice-range (column-family-slicerange family)))
+      (slot-makunbound column-parent 'cassandra::super-column)
+      (cond (cn-s
+             (setf (cassandra::slicepredicate-column-names slice-predicate) column-names)
+             (slot-makunbound slice-predicate 'cassandra::slice-range))
+            (t
+             (slot-makunbound slice-predicate 'cassandra::column-names)
+             (setf (cassandra::slicepredicate-slice-range slice-predicate) slice-range
+                   (cassandra::slicerange-start slice-range) start 
+                   (cassandra::slicerange-finish slice-range) finish
+                   (cassandra::slicerange-reversed slice-range) reversed
+                   (cassandra::slicerange-count slice-range) count)))
+      (let ((results ()))
+        (loop for key-slice in (get-range-slices (column-family-keyspace family)
+                                                 :column-parent column-parent
+                                                 :predicate slice-predicate
+                                                 :range key-range)
+              do (dolist (cosc (cassandra::keyslice-columns key-slice))
+                   (let ((sc (cassandra::columnorsupercolumn-super-column cosc)))
+                     (push (cons (cons (cassandra::keyslice-key key-slice)
+                                       (cassandra::supercolumn-name sc))
+                                 (cassandra::supercolumn-columns sc))
+                           results))))
+        results)))
 
 
 (defmethod set-attributes ((family super-column-family) (keys cons) &rest property-list)
