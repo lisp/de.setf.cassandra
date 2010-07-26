@@ -29,7 +29,9 @@
                 ;; 2.1.0 and 8.3.0 have radically different interfaces.
                 ;; the latter has a distinct set-keyspace while the former require it for each call.
                 :components ((:file "cassandra-2-1-0-types")
-                             (:file "cassandra-2-1-0-vars")))
+                             (:file "cassandra-2-1-0-vars")
+                             (:file "cassandra-8-3-0-types")
+                             (:file "cassandra-8-3-0-vars")))
                (:file "package")
                (:file "api" :depends-on ("package"))
                (:file "keyspace" :depends-on ("api" :gen-cl))
@@ -44,6 +46,7 @@
  ")
 
 (pushnew :cassandra-thrift-2-1-0 *features*)
+(pushnew :cassandra-thrift-8-3-0 *features*)
 
 
 #+(or)  ;; when asdf does not notice that it should recompile the api for thrift changes

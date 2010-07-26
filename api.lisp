@@ -20,65 +20,84 @@
 ;;;  with 'de.setf.cassandra' as 'lgpl.txt'. If not, see the GNU [site](http://www.gnu.org/licenses/).
 
 (defgeneric get (protocol-connection
-                 &key keyspace-name key column-path consistency-level)
-  (:documentation "See cassandra:get."))
+                 &key key column-path consistency-level)
+  (:documentation "See get."))
 
 
 (defgeneric get-slice (protocol-connection
-                       &key keyspace-name key column-parent predicate consistency-level)
-  (:documentation "See cassandra:get-slice."))
+                       &key key column-parent predicate consistency-level)
+  (:documentation "See get-slice."))
 
 
-#+cassandra-thrift-2-1-0
 (defgeneric multiget (protocol-connection
-                      &key keyspace-name keys column-path consistency-level)
+                      &key keys column-path consistency-level)
   (:documentation "See cassandra:multiget."))
 
 
 (defgeneric multiget-slice (protocol-connection
-                            &key keyspace-name keys column-parent predicate consistency-level)
+                            &key keys column-parent predicate consistency-level)
   (:documentation "See cassandra:multiget-slice."))
-
-#+cassandra-thrift-8
-(defgeneric multiget-count (protocol-connection
-                            &key keyspace-name keys column-parent predicate consistency-level)
-  (:documentation "See cassandra:multiget-count."))
 
 
 (defgeneric get-count (protocol-connection
-                       &key keyspace-name key column-parent consistency-level)
+                       &key key column-parent predicate consistency-level)
   (:documentation "See cassandra:get-count."))
 
 
+(defgeneric multiget-count (protocol-connection
+                            &key keys column-parent predicate consistency-level)
+  (:documentation "See cassandra:multiget-count."))
+
+
 (defgeneric get-range-slice (protocol-connection
-                              &key keyspace-name column-parent predicate
+                              &key column-parent predicate
                               start-key finish-key row-count consistency-level)
   (:documentation "See cassandra:get-range-slice."))
 
 
 (defgeneric get-range-slices (protocol-connection
-                              &key keyspace-name column-parent predicate range consistency-level)
+                              &key column-parent predicate range consistency-level)
   (:documentation "See cassandra:get-range-slices."))
 
 
+(defgeneric scan (keyspace
+                  &key column-parent row-predicate column-predicate consistency-level)
+  (:documentation "See cassandra:scan"))
+
+
+(defgeneric scan-count (keyspace
+                  &key column-parent row-predicate column-predicate consistency-level)
+  (:documentation "See cassandra:scan-count"))
+
+
 (defgeneric insert (protocol-connection
-                    &key keyspace-name key column-path value timestamp consistency-level)
+                    &key key column-family super-column column value timestamp ttl clock consistency-level)
   (:documentation "See cassandra:insert."))
 
 
 (defgeneric batch-insert (protocol-connection
-                          &key keyspace-name key cfmap consistency-level)
+                          &key key cfmap consistency-level)
   (:documentation "See cassandra:batch-insert."))
 
 
 (defgeneric remove (protocol-connection
-                    &key keyspace-name key column-path timestamp consistency-level)
+                    &key key column-path timestamp clock consistency-level)
   (:documentation "See cassandra:remove."))
 
 
 (defgeneric batch-mutate (protocol-connection
-                          &key keyspace-name mutation-map consistency-level)
+                          &key mutation-map consistency-level)
   (:documentation "See cassandra:get-range-slices."))
+
+
+(defgeneric truncate (protocol-connection
+                      &key column-family)
+  (:documentation "See cassandra:truncate."))
+
+
+(defgeneric check-schema-agreement (protocol-connection)
+  (:documentation "See cassandra:check-schema-agreement."))
+
 
 
 (defgeneric get-string-property (protocol-connection
@@ -103,37 +122,33 @@
   (:documentation "See cassandra:describe-version."))
 
 
-(defgeneric describe-ring (protocol-connection
-                           &key keyspace-name)
+(defgeneric describe-ring (protocol-connection)
   (:documentation "See cassandra:describe-ring."))
 
 
-(defgeneric describe-keyspace (protocol-connection
-                               &key keyspace-name)
+(defgeneric describe-keyspace (protocol-connection)
   (:documentation "See cassandra:describe-keyspace."))
 
 
-(defgeneric describe-splits (protocol-connection
-                             &key start-token end-token key-per-split)
-  (:documentation "See cassandra:describe-splits."))
+(defgeneric system-add-column-family (protocol-connection &key cf-def)
+  (:documentation "See cassandra:system-add-column-family"))
+  
 
-#+cassandra-thrift-8
-(defgeneric system-add-column-family (protocol-connection &key cf-def))
-
-#+cassandra-thrift-8
-(defgeneric system-drop-column-family (protocol-connection column-family))
-
-#+cassandra-thrift-8
-(defgeneric system-rename-column-family (protocol-connection &key old-name new-name))
-
-#+cassandra-thrift-8
-(defgeneric system-add-keyspace (protocol-connection ks-def))
-
-#+cassandra-thrift-8
-(defgeneric system-drop-keyspace (protocol-connection keyspace-name))
-
-#+cassandra-thrift-8
-(defgeneric system-rename-keyspace (protcol-connection old-name new-name))
+(defgeneric system-drop-column-family (protocol-connection column-family)
+  (:documentation "See cassandra:system-drop-column-family"))
 
 
-                                
+(defgeneric system-rename-column-family (protocol-connection &key old-name new-name)
+  (:documentation "See cassandra:system-rename-column-family"))
+
+
+(defgeneric system-add-keyspace (protocol-connection ks-def)
+  (:documentation "See cassandra:system-add-keyspace"))
+
+
+(defgeneric system-drop-keyspace (protocol-connection keyspace-name)
+  (:documentation "See cassandra:system-drop-keyspace"))
+
+
+(defgeneric system-rename-keyspace (protocol-connection old-name new-name)
+  (:documentation "See cassandra:system-rename-keyspace"))

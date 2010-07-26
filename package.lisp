@@ -39,7 +39,6 @@
    :describe-keyspace
    :describe-keyspaces
    :describe-ring
-   :describe-splits
    :describe-version
    :get
    :get-attribute
@@ -51,11 +50,14 @@
    :get-slice
    :insert
    :keyspace
+   :keyspace-description
    :login
    :multiget
    :multiget-count
    :multiget-slice
    :remove
+   :scan
+   :scan-count
    :set-attribute
    :set-attributes
    :system-add-column-family
@@ -67,16 +69,4 @@
    :truncate
    ))
 
-;;;
-;;; pick an interface
-
-#+cassandra-thrift-2-1-0
-(rename-package :cassandra-2-1-0 :cassandra-2-1-0 '(:cassandra))
-
-;;; extend the cassandra interface package
-
-(macrolet ((extend-package (symbol)
-             `(export (intern ,(string symbol) :cassandra) :cassandra)))
-  (extend-package :cassandra)
-  (extend-package :insert-data))
 
