@@ -1,0 +1,182 @@
+# Cassandra YAML generated from previous config
+# Configuration wiki: http://wiki.apache.org/cassandra/StorageConfiguration
+authenticator: org.apache.cassandra.auth.AllowAllAuthenticator
+auto_bootstrap: false
+binary_memtable_throughput_in_mb: 256
+cluster_name: RDF Cluster
+column_index_size_in_kb: 64
+commitlog_directory: tmp/commitlog
+commitlog_rotation_threshold_in_mb: 128
+commitlog_sync: periodic
+commitlog_sync_period_in_ms: 10000
+concurrent_reads: 8
+concurrent_writes: 32
+data_file_directories:
+- tmp/data
+disk_access_mode: auto
+dynamic_snitch: false
+gc_grace_seconds: 864000
+hinted_handoff_enabled: true
+in_memory_compaction_limit_in_mb: 256
+keyspaces:
+- column_families:
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: UTF8Type
+    keys_cached: 200000.0
+    name: Resources
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: UTF8Type
+    keys_cached: 200000.0
+    name: Index
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Standard
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: Cache
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  name: RDF
+  replica_placement_strategy: org.apache.cassandra.locator.RackUnawareStrategy
+  replication_factor: 1
+- column_families:
+  - column_metadata: []
+    column_type: Standard
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: SPOCIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Standard
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: CIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Standard
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: OIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Standard
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: PIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Standard
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: SIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: COSIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: CPOIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: CSOIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: CSPIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: POCIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: SOCIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: SPCIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  - column_metadata: []
+    column_type: Super
+    compare_subcolumns_with: BytesType
+    compare_with: BytesType
+    keys_cached: 200000.0
+    name: SPOIndex
+    preload_row_cache: false
+    read_repair_chance: 1.0
+    rows_cached: 0.0
+  name: SPOC
+  replica_placement_strategy: org.apache.cassandra.locator.RackUnawareStrategy
+  replication_factor: 1
+listen_address: localhost
+memtable_flush_after_mins: 60
+memtable_operations_in_millions: 0.3
+memtable_throughput_in_mb: 64
+partitioner: org.apache.cassandra.dht.RandomPartitioner
+phi_convict_threshold: 8
+rpc_port: 9160
+rpc_timeout_in_ms: 10000
+seeds:
+- 127.0.0.1
+sliced_buffer_size_in_kb: 64
+snapshot_before_compaction: false
+storage_port: 7000
+thrift_framed_transport_size_in_mb: 15
+thrift_max_message_length_in_mb: 16
