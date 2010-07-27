@@ -52,6 +52,7 @@
    :keyspace
    :keyspace-description
    :login
+   :map-columns
    :multiget
    :multiget-count
    :multiget-slice
@@ -69,4 +70,12 @@
    :truncate
    ))
 
+
+;;;
+;;; add the names for the versioned keyspace classes
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (dolist (package '(:cassandra_2.1.0 :cassandra_8.3.0))
+    (dolist (class '(:keyspace))
+      (export (intern (string class) package) package))))
 
