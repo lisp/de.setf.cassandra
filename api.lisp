@@ -19,13 +19,23 @@
 ;;;  You should have received a copy of the GNU Lesser General Public License along
 ;;;  with 'de.setf.cassandra' as 'lgpl.txt'. If not, see the GNU [site](http://www.gnu.org/licenses/).
 
+;;; This, the generic cassandra API, covers the thrift API versions for both 0.6 and 0.7 cassandra versions
+;;; It attempts to avoid the interface differences - the explicit keyspace name in 0.6, the change from
+;;; timestamps to clocks in 8.*, and the disjoint parameter class hierachies between API versions
+;;; by specializing on a versioned protocol argument, and either passing through other arguments separately
+;;; to permit the version-specific implementation to construct the requisite structure argument.
+
+
+(defparameter most-positive-i32 (1- (expt 2 31)))
+
 (defgeneric get (protocol-connection
-                 &key key column-path consistency-level)
+                 &key key column-family column consistency-level)
   (:documentation "See get."))
 
 
 (defgeneric get-slice (protocol-connection
-                       &key key column-parent predicate consistency-level)
+                       &key key column-family super-column start finish column-names reversed count
+                       consistency-level)
   (:documentation "See get-slice."))
 
 
@@ -56,7 +66,8 @@
 
 
 (defgeneric get-range-slices (protocol-connection
-                              &key column-parent predicate range consistency-level)
+                              &key key start-key finish-key column-family super-column start finish count column-names reversed
+                              consistency-level)
   (:documentation "See cassandra:get-range-slices."))
 
 
@@ -81,7 +92,7 @@
 
 
 (defgeneric remove (protocol-connection
-                    &key key column-path timestamp clock consistency-level)
+                    &key key column-family super-column column timestamp clock consistency-level)
   (:documentation "See cassandra:remove."))
 
 
@@ -152,3 +163,78 @@
 
 (defgeneric system-rename-keyspace (protocol-connection old-name new-name)
   (:documentation "See cassandra:system-rename-keyspace"))
+
+
+;;;
+;;; coercing accessors
+
+(defgeneric binary (object)
+  (:method ((object string))
+    (trivial-utf-8:string-to-utf-8-bytes object))
+  (:method ((object symbol))
+    (trivial-utf-8:string-to-utf-8-bytes (symbol-name object))))
+
+
+(defmethod (setf cassandra_8.3.0:column-name) ((name symbol) column)
+  (setf (cassandra_8.3.0:column-name column) (binary name)))
+
+(defmethod (setf cassandra_8.3.0:column-name) ((name string) column)
+  (setf (cassandra_8.3.0:column-name column) (binary name)))
+
+(defmethod (setf cassandra_8.3.0:column-value) ((value string) column)
+  (setf (cassandra_8.3.0:column-value column) (binary value)))
+
+
+(defgeneric column-value (column)
+  (:method ((column cassandra_2.1.0:column))
+    (cassandra_2.1.0:column-value column))
+  (:method ((column cassandra_8.3.0:column))
+    (cassandra_8.3.0:column-value column)))
+
+(defgeneric column-name (column)
+  (:method ((column cassandra_2.1.0:column))
+    (cassandra_2.1.0:column-name column))
+  (:method ((column cassandra_8.3.0:column))
+    (cassandra_8.3.0:column-name column)))
+
+(defgeneric columnorsupercolumn-column (column-or-super-column)
+  (:method ((cosc null))
+    ;; allow for null result from a retrieval
+    nil)
+  (:method ((cosc cassandra_2.1.0:columnorsupercolumn))
+    (cassandra_2.1.0:columnorsupercolumn-column cosc))
+  (:method ((cosc cassandra_8.3.0:columnorsupercolumn))
+    (cassandra_8.3.0:columnorsupercolumn-column cosc)))
+
+(defgeneric columnorsupercolumn-super-column (column-or-super-column)
+  (:method ((cosc null))
+    ;; allow for null result from a retrieval
+    nil)
+  (:method ((cosc cassandra_2.1.0:columnorsupercolumn))
+    (cassandra_2.1.0:columnorsupercolumn-super-column cosc))
+  (:method ((cosc cassandra_8.3.0:columnorsupercolumn))
+    (cassandra_8.3.0:columnorsupercolumn-super-column cosc)))
+
+(defgeneric keyslice-key (key-slice)
+  (:method ((key-slice cassandra_2.1.0:keyslice))
+    (cassandra_2.1.0:keyslice-key key-slice))
+  (:method ((key-slice cassandra_8.3.0:keyslice))
+    (cassandra_8.3.0:keyslice-key key-slice)))
+
+(defgeneric key-slice-columns (key-slice)
+  (:method ((key-slice cassandra_2.1.0:keyslice))
+    (cassandra_2.1.0:keyslice-columns key-slice))
+  (:method ((key-slice cassandra_8.3.0:keyslice))
+    (cassandra_8.3.0:keyslice-columns key-slice)))
+
+(defgeneric supercolumn-name (super-column)
+  (:method ((super-column cassandra_2.1.0:supercolumn))
+    (cassandra_2.1.0:supercolumn-name super-column))
+  (:method ((super-column cassandra_8.3.0:supercolumn))
+    (cassandra_8.3.0:supercolumn-name super-column)))
+
+(defgeneric supercolumn-columns (super-column)
+  (:method ((super-column cassandra_2.1.0:supercolumn))
+    (cassandra_2.1.0:supercolumn-columns super-column))
+  (:method ((super-column cassandra_8.3.0:supercolumn))
+    (cassandra_8.3.0:supercolumn-columns super-column)))
