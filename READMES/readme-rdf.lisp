@@ -196,11 +196,11 @@
          spoc-id)))))
 
 
-(defparameter *spoc* (client *c-location* :name "SPOC" :protocol 'cassandra-spoc-index-mediator))
+;;; (defparameter *spoc* (client *c-location* :name "SPOC" :protocol 'cassandra-spoc-index-mediator))
 
-(add-statement *spoc* "subject" "predicate" "object" "context")
-(add-statement *spoc* "subject" "is" "mysterious" "context")
-(add-statement *spoc* "subject" "is" "wonderful" "context")
+;;; (add-statement *spoc* "subject" "predicate" "object" "context")
+;;; (add-statement *spoc* "subject" "is" "mysterious" "context")
+;;; (add-statement *spoc* "subject" "is" "wonderful" "context")
 
 (defmacro spoc-case ((mediator (sub pre obj con) subject predicate object context)
                      &key spoc spo (spo- spo) spc (sp-c spc) sp (sp-- sp)
@@ -254,7 +254,7 @@
              (declare (dynamic-extent #'mv))
              (loop for column-id.c in (dsc:get-columns index key)
                    for s-constituents = (dsc:get-attributes (store-spoc-index mediator)
-                                                            (cassandra:column-name column-id.c)
+                                                            (column-name column-id.c)
                                                             :column-names column-names)
                    do (apply op 
                              (model-value mediator (column-value column-id.c))
@@ -394,4 +394,4 @@
                    (model-value mediator s-object)
                    (model-value mediator s-context)
                    (model-value mediator s-id))))
-      (cassandra:notfoundexception (c) (declare (ignore c)) nil))))
+      (cassandra_2.1.0:notfoundexception (c) (declare (ignore c)) nil))))
