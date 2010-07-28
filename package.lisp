@@ -53,6 +53,8 @@
    :keyspace-description
    :login
    :map-columns
+   :map-range-slices
+   :map-slice
    :multiget
    :multiget-count
    :multiget-slice

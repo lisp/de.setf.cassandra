@@ -84,6 +84,8 @@
     :initform (error "name is required.") :initarg :name
     :accessor column-family-name
     :documentation "The column family name.[http://wiki.apache.org/cassandra/DataModel#Column_Families].")
+   (type
+    :reader column-family-type)
    (slice-size
      :accessor column-family-slice-size
      :type i32
@@ -95,12 +97,12 @@
 
 
 (defclass standard-column-family (column-family)
-  ()
+  ((type :initform :standard :allocation :class))
   (:documentation "A standard-column-family represents a single-level cassandra hash."))
 
 
 (defclass super-column-family (column-family)
-  ()
+  ((type :initform :super :allocation :class))
   (:documentation "A super-column-family represents a two-level cassandra hash."))
 
 
@@ -108,8 +110,16 @@
 
 (defmethod initialize-instance :after ((instance column-family) &key
                                        (slice-size (keyspace-slice-size (column-family-keyspace instance))))
-  (setf (column-family-slice-size instance)
-        slice-size))
+  (setf (column-family-slice-size instance) slice-size)
+  (let* ((ks (column-family-keyspace instance))
+         (column-description (assoc (column-family-name instance) (keyspace-description ks) :test #'string-equal)))
+    (cond ((string-equal (column-family-type instance) (rest (assoc "Type" (rest column-description) :test #'string-equal))))
+          (column-description
+           (error "Invalid column type: ~s: ~s."
+                  instance column-description))
+          (t
+           (error "Invalid column: ~s (~s): ~s ~s."
+                  instance (column-family-name instance) ks (mapcar #'first (keyspace-description ks)))))))
 
 
 (defmethod get-attribute ((column-family column-family) key column-name)
@@ -121,7 +131,8 @@
   (labels ((walk-value (object)
              (typecase object
                (cons (cons (walk-value (first object)) (walk-value (rest object))))
-               ((or cassandra_2.1.0:column cassandra_8.3.0:column)(cons (column-name object) (column-value object)))
+               ((or cassandra_2.1.0:column cassandra_8.3.0:column)
+                (cons (column-name object) (column-value object)))
                (t object))))
     (mapcar #'walk-value (apply #'get-columns column-family key args))))
 
@@ -238,7 +249,7 @@
            (dynamic-extent args))
   (loop for key-slice in (apply #'get-range-slices (column-family-keyspace family)
                                 :column-family (column-family-name family)
-                                :start-key (or key #()) :finish-key (or key #())
+                                :start-key (or key "") :finish-key (or key "")
                                 :count count
                                 args)
         for key = (keyslice-key key-slice)
@@ -262,7 +273,7 @@
     (declare (dynamic-extent #'do-key-slice))
     (apply #'map-range-slices #'do-key-slice (column-family-keyspace family)
            :column-family (column-family-name family)
-           :start-key (or key #()) :finish-key (or key #())
+           :start-key (or key "") :finish-key (or key "")
            :count count
            args)))
 

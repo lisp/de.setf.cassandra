@@ -30,13 +30,18 @@
 
 (defgeneric get (protocol-connection
                  &key key column-family column consistency-level)
-  (:documentation "See get."))
+  (:documentation "See cassandra:get."))
 
 
 (defgeneric get-slice (protocol-connection
                        &key key column-family super-column start finish column-names reversed count
                        consistency-level)
-  (:documentation "See get-slice."))
+  (:documentation "See cassandra:get-slice."))
+
+(defgeneric map-slice (operator protocol-connection
+                       &key key column-family super-column start finish column-names reversed count
+                       consistency-level)
+  (:documentation "The mapped version of get-slice."))
 
 
 (defgeneric multiget (protocol-connection
@@ -69,6 +74,12 @@
                               &key key start-key finish-key column-family super-column start finish count column-names reversed
                               consistency-level)
   (:documentation "See cassandra:get-range-slices."))
+
+
+(defgeneric map-range-slices (operator protocol-connection
+                              &key key start-key finish-key column-family super-column start finish count column-names reversed
+                              consistency-level)
+  (:documentation "The mapped version of cassandra:get-range-slices."))
 
 
 (defgeneric scan (keyspace
@@ -172,17 +183,45 @@
   (:method ((object string))
     (trivial-utf-8:string-to-utf-8-bytes object))
   (:method ((object symbol))
-    (trivial-utf-8:string-to-utf-8-bytes (symbol-name object))))
+    (trivial-utf-8:string-to-utf-8-bytes (symbol-name object)))
+  (:method ((object number))
+    (let* ((string (princ-to-string object))
+           (buffer (make-array (length string) :element-type '(unsigned-byte 8))))
+      (map-into buffer #'char-code string))))
 
 
-(defmethod (setf cassandra_8.3.0:column-name) ((name symbol) column)
-  (setf (cassandra_8.3.0:column-name column) (binary name)))
+(macrolet ((def-binary-writer (name &key (types '(string symbol))
+                                    (packages '(:cassandra_8.3.0 :cassandra_2.1.0)))
+             `(progn
+                ,@(loop for package in packages
+                        append (loop for type in types
+                                     collect
+                                     `(defmethod (setf ,(or (find-symbol (string name) package)
+                                                            (error "missing ~a:~a." package name)))
+                                                 ((value ,type) instance)
+                                        (setf (,(find-symbol (string name) package) instance)
+                                              (binary value))))))))
+  (def-binary-writer column-name)
+  (def-binary-writer column-value :types (string symbol number))
+  (def-binary-writer columnpath-column)
+  (def-binary-writer supercolumn-name)
+  (def-binary-writer columnparent-super-column)
+  (def-binary-writer columnpath-super-column)
+  (def-binary-writer columnpath-column)
+  (def-binary-writer slicerange-start)
+  (def-binary-writer slicerange-finish)
+  (def-binary-writer deletion-super-column)
+  ;; present in 8.3.0 only
+  (def-binary-writer indexexpression-column-name :packages (cassandra_8.3.0))
+  (def-binary-writer indexexpression-value :packages (cassandra_8.3.0))
+  (def-binary-writer indexclause-start-key :packages (cassandra_8.3.0))
+  (def-binary-writer keycount-key :packages (cassandra_8.3.0))
+  ;; binary in 8.3.0, string in 2.1.0
+  (def-binary-writer keyrange-start-key :packages (cassandra_8.3.0))
+  (def-binary-writer keyrange-end-key :packages (cassandra_8.3.0))
+  (def-binary-writer keyslice-key :packages (cassandra_8.3.0))
+  (def-binary-writer columndef-name :packages (cassandra_8.3.0)))
 
-(defmethod (setf cassandra_8.3.0:column-name) ((name string) column)
-  (setf (cassandra_8.3.0:column-name column) (binary name)))
-
-(defmethod (setf cassandra_8.3.0:column-value) ((value string) column)
-  (setf (cassandra_8.3.0:column-value column) (binary value)))
 
 
 (defgeneric column-value (column)
@@ -191,11 +230,23 @@
   (:method ((column cassandra_8.3.0:column))
     (cassandra_8.3.0:column-value column)))
 
+(defgeneric column-value-string (column)
+  (:method ((column cassandra_2.1.0:column))
+    (trivial-utf-8:utf-8-bytes-to-string (cassandra_2.1.0:column-value column)))
+  (:method ((column cassandra_8.3.0:column))
+    (trivial-utf-8:utf-8-bytes-to-string (cassandra_8.3.0:column-value column))))
+
 (defgeneric column-name (column)
   (:method ((column cassandra_2.1.0:column))
     (cassandra_2.1.0:column-name column))
   (:method ((column cassandra_8.3.0:column))
     (cassandra_8.3.0:column-name column)))
+
+(defgeneric column-name-string (column)
+  (:method ((column cassandra_2.1.0:column))
+    (trivial-utf-8:utf-8-bytes-to-string (cassandra_2.1.0:column-name column)))
+  (:method ((column cassandra_8.3.0:column))
+    (trivial-utf-8:utf-8-bytes-to-string (cassandra_8.3.0:column-name column))))
 
 (defgeneric columnorsupercolumn-column (column-or-super-column)
   (:method ((cosc null))

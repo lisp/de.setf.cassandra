@@ -50,8 +50,8 @@
     :initform nil :initarg :version
     :reader keyspace-version)
    (version-map
-    :initform '(("0.6.4" . cassandra_2.1.0:keyspace)
-                ("0.7.0" . cassandra_8.3.0:keyspace))
+    :initform '(("2.1.0" . cassandra_2.1.0:keyspace)
+                ("8.3.0" . cassandra_8.3.0:keyspace))
     :allocation :class
     :reader keyspace-version-map))
 
@@ -100,7 +100,7 @@
 (defmethod initialize-instance :after ((instance keyspace) &key)
   (let ((version (describe-version instance)))
     (unless (equal version (keyspace-version instance))
-      (let ((new-class (rest (assoc version (keyspace-version-map instance)))))
+      (let ((new-class (rest (assoc version (keyspace-version-map instance) :test #'equal))))
         (cond ((null new-class)
                (error "Service version not supported: ~s. Expected one of: ~s."
                       version (mapcar #'first (keyspace-version-map instance))))
@@ -168,7 +168,7 @@
     (when super-column
       (setf (cassandra_2.1.0:columnparent-super-column column-parent) super-column))
     (if cn-s
-      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) column-names)
+      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
       (setf slice-range (cassandra_2.1.0:make-slicerange :reversed reversed :count count :start start :finish finish)
             (cassandra_2.1.0:slicepredicate-slice-range slice-predicate) slice-range))
     (cassandra_2.1.0:get-slice keyspace (keyspace-name keyspace) key column-parent slice-predicate consistency-level)))
@@ -183,7 +183,7 @@
     (when super-column
       (setf (cassandra_2.1.0:columnparent-super-column column-parent) super-column))
     (cond (cn-s
-           (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) column-names)
+           (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
            (map nil op
                 (cassandra_2.1.0:get-slice keyspace (keyspace-name keyspace) key column-parent slice-predicate consistency-level)))
           (t
@@ -210,7 +210,7 @@
     (when super-column
       (setf (cassandra_8.3.0:columnparent-super-column column-parent) super-column))
     (if cn-s
-      (setf (cassandra_8.3.0:slicepredicate-column-names slice-predicate) column-names)
+      (setf (cassandra_8.3.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
       (setf slice-range (cassandra_8.3.0:make-slicerange :reversed reversed :count count :start start :finish finish)
             (cassandra_8.3.0:slicepredicate-slice-range slice-predicate) slice-range))
     (cassandra_8.3.0:get-slice keyspace key column-parent slice-predicate consistency-level)))
@@ -225,7 +225,7 @@
     (when super-column
       (setf (cassandra_8.3.0:columnparent-super-column column-parent) super-column))
     (cond (cn-s
-           (setf (cassandra_8.3.0:slicepredicate-column-names slice-predicate) column-names)
+           (setf (cassandra_8.3.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
            (map nil op
                 (cassandra_8.3.0:get-slice keyspace key column-parent slice-predicate consistency-level)))
           (t
@@ -305,7 +305,7 @@
     (when super-column
       (setf (cassandra_2.1.0:columnparent-super-column column-parent) super-column))
     (if cn-s
-      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) column-names)
+      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
       (setf (cassandra_2.1.0:slicepredicate-slice-range slice-predicate)
             (cassandra_2.1.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish)))
     (cassandra_2.1.0:get-range-slice keyspace (keyspace-name keyspace) column-parent slice-predicate
@@ -322,7 +322,7 @@
     (when super-column
       (setf (cassandra_2.1.0:columnparent-super-column column-parent) super-column))
     (if cn-s
-      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) column-names)
+      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
       (setf (cassandra_2.1.0:slicepredicate-slice-range slice-predicate)
             (cassandra_2.1.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish)))
     (cassandra_8.3.0:get-range-slices keyspace column-parent slice-predicate key-range consistency-level)))
@@ -338,7 +338,7 @@
     (when super-column
       (setf (cassandra_2.1.0:columnparent-super-column column-parent) super-column))
     (cond (cn-s
-           (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) column-names))
+           (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names)))
           (t
            (setf slice-range (cassandra_2.1.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish))
            (setf (cassandra_2.1.0:slicepredicate-slice-range slice-predicate) slice-range)))
@@ -365,7 +365,7 @@
     (when super-column
       (setf (cassandra_8.3.0:columnparent-super-column column-parent) super-column))
     (cond (cn-s
-           (setf (cassandra_8.3.0:slicepredicate-column-names slice-predicate) column-names))
+           (setf (cassandra_8.3.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names)))
           (t
            (setf slice-range (cassandra_8.3.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish))
            (setf (cassandra_8.3.0:slicepredicate-slice-range slice-predicate) slice-range)))
@@ -405,17 +405,17 @@
                    (consistency-level (keyspace-consistency-level keyspace)))
   (when ttl (warn "TTL is ignored: ~a; ~a" keyspace ttl))
   (let ((column-path (cassandra_2.1.0:make-columnpath :column-family column-family
-                                                      :super-column super-column
                                                       :column column)))
+    (when super-column (setf (cassandra_2.1.0:columnpath-super-column column-path) super-column))
     (cassandra_2.1.0:insert keyspace (keyspace-name keyspace) key column-path value (cassandra_8.3.0:clock-timestamp clock) consistency-level)))
 
 (defmethod insert ((keyspace cassandra_8.3.0:keyspace) &key
                    key column-family super-column column value ttl
                    timestamp (clock (keyspace-clock keyspace timestamp))
                    (consistency-level (keyspace-consistency-level keyspace)))
-  (let ((column-parent (cassandra_8.3.0:make-columnparent :column-family column-family
-                                                      :super-column super-column))
+  (let ((column-parent (cassandra_8.3.0:make-columnparent :column-family column-family))
         (column (cassandra_8.3.0:make-column  :name column :value value :clock clock)))
+    (when super-column (setf (cassandra_8.3.0:columnparent-super-column column-parent) super-column))
     (when ttl (setf (cassandra_8.3.0:column-ttl column) ttl))
     (cassandra_8.3.0:insert keyspace key column-parent column consistency-level)))
 
@@ -502,35 +502,35 @@
     (let* ((clock (keyspace-clock keyspace))
            (timestamp (cassandra_8.3.0:clock-timestamp clock)))
      (thrift:map key (thrift:map column-family-name
-                                 (cassandra_2.1.0:make-mutation
-                                  :column-or-supercolumn
-                                  (cassandra_2.1.0:make-columnorsupercolumn
-                                   :super-column (cassandra_2.1.0:make-supercolumn
-                                                  :name super-column-key
-                                                  :columns (loop for (column-name value)
-                                                                 on name-value-plist by #'cddr
-                                                                 when value     ; skip null values
-                                                                 collect (cassandra_2.1.0:make-column
-                                                                          :name column-name
-                                                                          :value value
-                                                                          :timestamp timestamp)))))))))
+                                 (list (cassandra_2.1.0:make-mutation
+                                        :column-or-supercolumn
+                                        (cassandra_2.1.0:make-columnorsupercolumn
+                                         :super-column (cassandra_2.1.0:make-supercolumn
+                                                        :name super-column-key
+                                                        :columns (loop for (column-name value)
+                                                                       on name-value-plist by #'cddr
+                                                                       when value     ; skip null values
+                                                                       collect (cassandra_2.1.0:make-column
+                                                                                :name column-name
+                                                                                :value value
+                                                                                :timestamp timestamp))))))))))
 
    (:method ((keyspace cassandra_8.3.0:keyspace) column-family-name key super-column-key &rest name-value-plist)
     (declare (dynamic-extent name-value-plist))
     (let* ((clock (keyspace-clock keyspace)))
       (thrift:map key (thrift:map column-family-name
-                                  (cassandra_8.3.0:make-mutation
-                                   :column-or-supercolumn
-                                   (cassandra_8.3.0:make-columnorsupercolumn
-                                    :super-column (cassandra_8.3.0:make-supercolumn
-                                                   :name super-column-key
-                                                   :columns (loop for (column-name value)
-                                                                  on name-value-plist by #'cddr
-                                                                  when value     ; skip null values
-                                                                  collect (cassandra_8.3.0:make-column
-                                                                           :name column-name
-                                                                           :value value
-                                                                           :clock clock))))))))))
+                                  (list (cassandra_8.3.0:make-mutation
+                                         :column-or-supercolumn
+                                         (cassandra_8.3.0:make-columnorsupercolumn
+                                          :super-column (cassandra_8.3.0:make-supercolumn
+                                                         :name super-column-key
+                                                         :columns (loop for (column-name value)
+                                                                        on name-value-plist by #'cddr
+                                                                        when value     ; skip null values
+                                                                        collect (cassandra_8.3.0:make-column
+                                                                                 :name column-name
+                                                                                 :value value
+                                                                                 :clock clock)))))))))))
 
 
 
@@ -583,6 +583,10 @@
 
 
 ;;; describe_version
+
+(defmethod describe-version ((keyspace keyspace))
+  ;; get by with the earliest version
+  (cassandra_2.1.0:describe-version keyspace))
 
 (defmethod describe-version ((keyspace cassandra_2.1.0:keyspace))
   (cassandra_2.1.0:describe-version keyspace))
