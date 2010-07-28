@@ -7,7 +7,7 @@
 (cl:EVAL-WHEN (:COMPILE-TOPLEVEL :LOAD-TOPLEVEL :EXECUTE)
   (ORG.APACHE.THRIFT:DEF-STRUCT "get_bin_args"
     (("keyspace" NIL :ID 1 :TYPE STRING)
-     ("key" NIL :ID 2 :TYPE STRING)
+     ("key" NIL :ID 2 :TYPE binary)
      ("column_path" NIL :ID 3 :TYPE
       (ORG.APACHE.THRIFT:STRUCT "columnpath"))
      ("consistency_level" NIL :ID 4 :TYPE
