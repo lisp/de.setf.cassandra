@@ -5,6 +5,33 @@
 (cl:in-package :cassandra_2.1.0)
 
 (cl:EVAL-WHEN (:COMPILE-TOPLEVEL :LOAD-TOPLEVEL :EXECUTE)
+  (ORG.APACHE.THRIFT:DEF-STRUCT "get_bin_args"
+    (("keyspace" NIL :ID 1 :TYPE STRING)
+     ("key" NIL :ID 2 :TYPE STRING)
+     ("column_path" NIL :ID 3 :TYPE
+      (ORG.APACHE.THRIFT:STRUCT "columnpath"))
+     ("consistency_level" NIL :ID 4 :TYPE
+      (ORG.APACHE.THRIFT:ENUM
+       "ConsistencyLevel")))))
+
+(ORG.APACHE.THRIFT.IMPLEMENTATION::DEF-REQUEST-METHOD
+  CASSANDRA_2.1.0:GET
+  ((("keyspace" STRING 1) ("key" binary 2)
+    ("column_path" (ORG.APACHE.THRIFT:STRUCT "columnpath") 3)
+    ("consistency_level" (ORG.APACHE.THRIFT:ENUM "ConsistencyLevel") 4))
+   (ORG.APACHE.THRIFT:STRUCT "columnorsupercolumn"))
+  (:IDENTIFIER "get")
+  (:CALL-STRUCT "get_bin_args")
+  (:REPLY-STRUCT "get_result")
+  (:EXCEPTIONS
+   ("ire" NIL :ID 1 :TYPE
+    (ORG.APACHE.THRIFT:STRUCT "invalidrequestexception"))
+   ("nfe" NIL :ID 2 :TYPE (ORG.APACHE.THRIFT:STRUCT "notfoundexception"))
+   ("ue" NIL :ID 3 :TYPE (ORG.APACHE.THRIFT:STRUCT "unavailableexception"))
+   ("te" NIL :ID 4 :TYPE (ORG.APACHE.THRIFT:STRUCT "timedoutexception"))))
+
+
+(cl:EVAL-WHEN (:COMPILE-TOPLEVEL :LOAD-TOPLEVEL :EXECUTE)
   (ORG.APACHE.THRIFT:DEF-STRUCT "get_slice_bin_args"
     (("keyspace" NIL :ID 1 :TYPE STRING)
      ("key" NIL :ID 2 :TYPE binary)
@@ -27,7 +54,6 @@
    (ORG.APACHE.THRIFT:LIST (ORG.APACHE.THRIFT:STRUCT
                             "columnorsupercolumn")))
   (:IDENTIFIER "get_slice")
-  (:DOCUMENTATION "get_slice w/ a binary key")
   (:CALL-STRUCT "get_slice_bin_args")
   (:REPLY-STRUCT "get_slice_result")
   (:EXCEPTIONS
@@ -58,10 +84,6 @@
     ("consistency_level" (ORG.APACHE.THRIFT:ENUM "ConsistencyLevel") 6))
    ORG.APACHE.THRIFT:VOID)
   (:IDENTIFIER "insert")
-  (:DOCUMENTATION
-   "Insert a Column consisting of (column_path.column, value, timestamp) at the given column_path.column_family and optional
-column_path.super_column. Note that column_path.column is here required, since a SuperColumn cannot directly contain binary
-values -- it can only contain sub-Columns.")
   (:CALL-STRUCT "insert_bin_args")
   (:REPLY-STRUCT "insert_result")
   (:EXCEPTIONS
