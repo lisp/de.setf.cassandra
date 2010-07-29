@@ -28,26 +28,24 @@
                           (value-string (to-string value))
                           (name-string (to-string name)))
                      (dot:put-eol)
-                     (dot:put-node column :label (format nil "{~a | ~a}" name-string value-string)))
+                     (dot:put-node column :label (format nil "{~a | ~a}" name-string value-string)
+                                   :shape "record"))
                    column))
                (put-supercolumn (supercolumn)
                  (when (or (null supercolumn-count) (<= (incf *supercolumn-count*) supercolumn-count))
                    (let ((name-string (to-string (supercolumn-name supercolumn)))
-                         (*column-count* 0)
-                         (last supercolumn))
+                         (*column-count* 0))
                      (declare (special *column-count*))
                      (dot:put-node supercolumn :label name-string)
                      (dolist (column (supercolumn-columns supercolumn))
                        (cond ((put-column column)
-                              (dot:put-edge last column)
-                              (setf last column))
+                              (dot:put-edge supercolumn column))
                              (t
                               (return)))))
                    supercolumn))
                (put-row (keyslice)
                  (when (or (null row-count) (<= (incf *row-count*) row-count))
                    (let ((key-string (to-string (keyslice-key keyslice)))
-                         (last keyslice)
                          (*column-count* 0)
                          (*supercolumn-count* 0))
                      (declare (special *column-count* *supercolumn-count*))
@@ -60,8 +58,7 @@
                                        (put-column node))
                                       (t
                                        (warn "No cosc content: ~s: ~s." key-string cosc)))
-                                (dot:put-edge last node)
-                                (setf last node))
+                                (dot:put-edge keyslice node))
                                (t
                                 (return)))))
                      keyslice))))
@@ -71,12 +68,13 @@
                                  (dolist (column-family (mapcar #'first (keyspace-description keyspace)))
                                    (let ((*row-count* 0))
                                      (declare (special *row-count*))
-                                     (dot:put-subgraph column-family
+                                     (dot:put-subgraph (string (gensym "CF"))
                                                        #'(lambda ()
                                                            (map-range-slices #'put-row keyspace
                                                                              :column-family column-family
                                                                              :count nil
-                                                                             :start-key #() :finish-key #()))))))
+                                                                             :start-key #() :finish-key #()))
+                                                       :label (format nil "Column Family: ~a" column-family)))))
                              :rankdir rankdir
                              :size size
                              ;; :overlap "scale"
