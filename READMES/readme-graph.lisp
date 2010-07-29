@@ -75,10 +75,12 @@
                                                     #'(lambda ()
                                                         (map-range-slices #'put-row keyspace
                                                                           :column-family column-family
-                                                                          :start-key "" :finish-key ""))))))
+                                                                          :start-key #() :finish-key #()))))))
                              :rankdir rankdir
                              :size size
                              ;; :overlap "scale"
                              :ranksep 4)
       pathname)))
 
+;;; (defparameter *ks* (keyspace *c-location* :name "Keyspace1"))
+;;; (graph-keyspace *ks* "ks.dot")
