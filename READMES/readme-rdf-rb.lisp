@@ -7,7 +7,7 @@
 ;;; - half of the two level indices for direct 2/4 and 3/4 retrieval
 ;;;
 ;;; see readme-columns for the load/connection steps
-;;; see readme-rdf for utility operators
+;;; see readme-rdf for utility operators ! and macros
 
 (in-package :de.setf.cassandra)
 
@@ -38,7 +38,7 @@
   ())
 
             
-(defmethod initialize-instance :after ((instance cassandra-spoc-index-mediator)
+(defmethod initialize-instance :after ((instance cassandra-rdfrb-index-mediator)
                                        &key resources-family index-family cache-family)
   (set-keyspace-column-family instance resources-family 'resources-family :class 'super-column-family :required t)
   (set-keyspace-column-family instance index-family 'index-family :class 'super-column-family :required nil)
@@ -235,19 +235,6 @@
 
 #|
 
-(defun test-map (test)
-  (destructuring-bind (pattern &rest expected-results) test
-    (let ((results ()))
-      (block :map
-        (handler-bind ((error (lambda (c) (push c results) (break "error: ~a" c) (return-from :map nil))))
-          (apply #'map-statements *spoc* #'(lambda (subject predicate object context id)
-                                             (declare (ignore id))
-                                             (push (list subject predicate object context) results))
-                 pattern)))
-      (format *trace-output* "~&~a ~:[ok~;failed: ~:*~s~]"
-              pattern
-              (set-exclusive-or results expected-results :test #'equalp)))))
-
 (defparameter *c-location*
   ;; remote
   ;; #u"thrift://ec2-174-129-66-148.compute-1.amazonaws.com:9160"
@@ -256,63 +243,17 @@
   "A cassandra service location - either the local one or a remote service 
  - always a 'thrift' uri.")
 
-(defparameter *spoc* (client *c-location* :name "SPOC" :protocol 'cassandra-spoc-index-mediator))
+(defparameter *rdfrb* (client *c-location* :name "RDF" :protocol 'cassandra-rdfrb-index-mediator))
 
-(add-statement *spoc* "vanille" "scoops" "100" "2010-07-28")
-(add-statement *spoc* "vanille" "scoops" "10" "2010-07-27")
-(add-statement *spoc* "cheesecake" "slices" "2" "2010-07-28")
-(add-statement *spoc* "cheesecake" "cheesecake" "20" "2010-07-29")
+(add-statement *rdfrb* "http://rdf.rubyforge.org/" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://usefulinc.com/ns/doap#Project" "2010-07-20")
+(add-statement *rdfrb* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://ar.to/#self" "2010-07-30")
+(add-statement *rdfrb* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://bhuga.net/#ben" "2010-07-30")
 
+(add-statement *rdfrb* "http://ar.to/#self" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
+(add-statement *rdfrb* "http://ar.to/#self" "http://xmlns.com/foaf/0.1/name" "Arto Bendiken")
 
-(add-statement *spoc* "subject" "predicate" "object" "context2")
-(delete-statement *spoc* "subject" "predicate" "object" "context")
-(map nil #'test-map
-     '(((nil nil nil nil) .                 (("cheesecake" "slices" "20" "2010-07-29") ("vanille" "scoops" "100" "2010-07-28")
-                                             ("cheesecake" "slices" "2" "2010-07-28") ("vanille" "scoops" "10" "2010-07-27")))
-       (("vanille" nil nil nil) .           (("vanille" "scoops" "100" "2010-07-28") ("vanille" "scoops" "10" "2010-07-27")))
-       ((nil "scoops" nil nil) .            (("vanille" "scoops" "100" "2010-07-28") ("vanille" "scoops" "10" "2010-07-27")))
-       (("vanille" "scoops" nil nil) .      (("vanille" "scoops" "10" "2010-07-27") ("vanille" "scoops" "100" "2010-07-28")))
-       ((nil nil "10" nil) .                (("vanille" "scoops" "10" "2010-07-27")))
-       ((nil nil "100" nil).                (("vanille" "scoops" "100" "2010-07-28")))
-       (("vanille" nil "10" nil) .          (("vanille" "scoops" "10" "2010-07-27")))
-       (("vanille" nil "100" nil) .         (("vanille" "scoops" "100" "2010-07-28")))
-       ((nil "scoops" "10" nil) .           (("vanille" "scoops" "10" "2010-07-27")))
-       ((nil "scoops" "100" nil) .          (("vanille" "scoops" "100" "2010-07-28")))
-       (("vanille" "scoops" "10" nil) .     (("vanille" "scoops" "10" "2010-07-27")))
-       (("vanille" "scoops" "100" nil) .    (("vanille" "scoops" "100" "2010-07-28")))
-       ((nil nil nil "2010-07-27") .        (("vanille" "scoops" "10" "2010-07-27")))
-       ((nil nil nil "2010-07-28") .        (("vanille" "scoops" "100" "2010-07-28") ("cheesecake" "slices" "2" "2010-07-28")))
-       (("vanille" nil nil "2010-07-28") .  (("vanille" "scoops" "100" "2010-07-28")))
-       (("vanille" "scoops" nil "2010-07-27") . (("vanille" "scoops" "10" "2010-07-27")))
-       ((nil nil "10" "2010-07-27") .       (("vanille" "scoops" "10" "2010-07-27")))
-       ((nil nil "100" "2010-07-28") .      (("vanille" "scoops" "100" "2010-07-28")))
-       (("vanille" nil "10" "2010-07-27") . (("vanille" "scoops" "10" "2010-07-27")))
-       (("vanille" nil "100" "2010-07-27"))     ; note scoop count
-       ((nil "scoops" "10" "2010-07-27") .  (("vanille" "scoops" "10" "2010-07-27")))
-       ((nil "scoops" "100" "2010-07-27"))
-       ((nil "scoops" "100" "2010-07-28") . (("vanille" "scoops" "100" "2010-07-28")))
-       (("vanille" "scoops" "10" "2010-07-27") . (("vanille" "scoops" "10" "2010-07-27")))
-       (("vanille" "scoops" "100" "2010-07-28") . (("vanille" "scoops" "100" "2010-07-28")))))
+(add-statement *rdfrb* "http://bhuga.net/#ben" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
+(add-statement *rdfrb* "http://bhuga.net/#ben" "http://xmlns.com/foaf/0.1/name" "Ben Lavender" "2010-07-30")
 
 
-(defun test-spoc-case (mediator subject predicate object context)
-  (spoc-case (mediator (s-subject s-predicate s-object s-context) subject predicate object context)
-    :spoc :spoc
-    :spo- :spo-
-    :sp-c :sp-c
-    :sp-- :sp--
-    :s-oc :s-oc
-    :s-o- :s-o-
-    :s--c :s--c
-    :s--- :s---
-    :-poc :-poc
-    :-po- :-po-
-    :-p-c :-p-c
-    :-p-- :-p--
-    :--oc :--oc
-    :--o- :--o-
-    :---c :---c
-    :---- :----))
-
-(test-spoc-case t 1 nil 2 nil)
 |#
