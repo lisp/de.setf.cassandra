@@ -54,9 +54,11 @@
                      (dot:put-node keyslice :label key-string)
                      (dolist (cosc (key-slice-columns keyslice))
                        (let ((node nil))
-                         (cond ((cond ((setf node (columnorsupercolumn-super-column cosc))
+                         (cond ((cond ((slot-boundp cosc 'supercolumn)
+                                       (setf node (columnorsupercolumn-super-column cosc))
                                        (put-supercolumn node))
-                                      ((setf node (columnorsupercolumn-column cosc))
+                                      ((slot-boundp cosc 'column)
+                                       (setf node (columnorsupercolumn-column cosc))
                                        (put-column node))
                                       (t
                                        (warn "No cosc content: ~s: ~s." key-string cosc)))
