@@ -300,23 +300,8 @@
                               key (start-key key) (finish-key key)
                               column-family super-column (start "") (finish "") (column-names nil cn-s) reversed count
                              (consistency-level (keyspace-consistency-level keyspace)))
-  (let ((column-parent (cassandra_2.1.0:make-columnparent :column-family  column-family))
-        (slice-predicate (cassandra_2.1.0:make-slicepredicate)))
-    (when super-column
-      (setf (cassandra_2.1.0:columnparent-super-column column-parent) super-column))
-    (if cn-s
-      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
-      (setf (cassandra_2.1.0:slicepredicate-slice-range slice-predicate)
-            (cassandra_2.1.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish)))
-    (cassandra_2.1.0:get-range-slice keyspace (keyspace-name keyspace) column-parent slice-predicate
-                                     start-key finish-key count consistency-level)))
-
-
-(defmethod get-range-slices ((keyspace cassandra_8.3.0:keyspace) &key
-                              key (start-key key) (finish-key key)
-                              column-family super-column (start "") (finish "") (column-names nil cn-s) reversed count
-                             (consistency-level (keyspace-consistency-level keyspace)))
-  (let ((key-range (cassandra_8.3.0:make-keyrange :start-key start-key :end-key finish-key :count count))
+  (unless count (setf count (keyspace-slice-size keyspace)))
+  (let ((key-range (cassandra_2.1.0:make-keyrange :start-key start-key :end-key finish-key :count count))
         (column-parent (cassandra_2.1.0:make-columnparent :column-family  column-family))
         (slice-predicate (cassandra_2.1.0:make-slicepredicate)))
     (when super-column
@@ -325,14 +310,33 @@
       (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
       (setf (cassandra_2.1.0:slicepredicate-slice-range slice-predicate)
             (cassandra_2.1.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish)))
+    (cassandra_2.1.0:get-range-slices keyspace (keyspace-name keyspace) column-parent slice-predicate key-range consistency-level)))
+
+
+(defmethod get-range-slices ((keyspace cassandra_8.3.0:keyspace) &key
+                              key (start-key key) (finish-key key)
+                              column-family super-column (start "") (finish "") (column-names nil cn-s) reversed count
+                             (consistency-level (keyspace-consistency-level keyspace)))
+  (unless count (setf count (keyspace-slice-size keyspace)))
+  (let ((key-range (cassandra_8.3.0:make-keyrange :start-key start-key :end-key finish-key :count count))
+        (column-parent (cassandra_2.1.0:make-columnparent :column-family  column-family))
+        (slice-predicate (cassandra_2.1.0:make-slicepredicate)))
+    (when super-column
+      (setf (cassandra_2.1.0:columnparent-super-column column-parent) super-column))
+    (if cn-s
+      (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names))
+      (setf (cassandra_2.1.0:slicepredicate-slice-range slice-predicate)
+            (cassandra_2.1.0:make-slicerange :reversed reversed :count count :start start :finish finish)))
     (cassandra_8.3.0:get-range-slices keyspace column-parent slice-predicate key-range consistency-level)))
 
 
 (defmethod map-range-slices (op (keyspace cassandra_2.1.0:keyspace) &key
                               key (start-key key) (finish-key key)
-                              column-family super-column (start "") (finish "") (column-names nil cn-s) reversed count
-                             (consistency-level (keyspace-consistency-level keyspace)))
-  (let ((column-parent (cassandra_2.1.0:make-columnparent :column-family  column-family))
+                              column-family super-column (start "") (finish "") (column-names nil cn-s) reversed
+                              (count (keyspace-slice-size keyspace))
+                              (consistency-level (keyspace-consistency-level keyspace)))
+  (let ((key-range (cassandra_2.1.0:make-keyrange :start-key start-key :end-key finish-key :count (keyspace-slice-size keyspace)))
+        (column-parent (cassandra_2.1.0:make-columnparent :column-family  column-family))
         (slice-predicate (cassandra_2.1.0:make-slicepredicate))
         (slice-range nil))
     (when super-column
@@ -340,15 +344,14 @@
     (cond (cn-s
            (setf (cassandra_2.1.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names)))
           (t
-           (setf slice-range (cassandra_2.1.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish))
+           (setf slice-range (cassandra_2.1.0:make-slicerange :reversed reversed :count (keyspace-slice-size keyspace) :start start :finish finish))
            (setf (cassandra_2.1.0:slicepredicate-slice-range slice-predicate) slice-range)))
     (let ((last-key-slice nil))
-      (loop (let ((slice (cassandra_2.1.0:get-range-slice keyspace (keyspace-name keyspace) column-parent slice-predicate
-                                     start-key finish-key count consistency-level)))
+      (loop (let ((slice (cassandra_2.1.0:get-range-slices  keyspace (keyspace-name keyspace) column-parent slice-predicate key-range consistency-level)))
               (when last-key-slice (pop slice))
               (unless slice (return))
               (loop (unless slice (return))
-                    (when (minusp (decf count)) (return))
+                    (when (and count (minusp (decf count))) (return))
                     (setf last-key-slice (pop slice))
                     (funcall op last-key-slice)
                     (setf start-key (cassandra_2.1.0:keyslice-key last-key-slice))))))))
@@ -356,9 +359,10 @@
 
 (defmethod map-range-slices (op (keyspace cassandra_8.3.0:keyspace) &key
                               key (start-key key) (finish-key key)
-                              column-family super-column (start "") (finish "") (column-names nil cn-s) reversed count
-                             (consistency-level (keyspace-consistency-level keyspace)))
-  (let ((key-range (cassandra_8.3.0:make-keyrange :start-key start-key :end-key finish-key :count count))
+                              column-family super-column (start "") (finish "") (column-names nil cn-s) reversed
+                              (count (keyspace-slice-size keyspace))
+                              (consistency-level (keyspace-consistency-level keyspace)))
+  (let ((key-range (cassandra_8.3.0:make-keyrange :start-key start-key :end-key finish-key :count (keyspace-slice-size keyspace)))
         (column-parent (cassandra_8.3.0:make-columnparent :column-family  column-family))
         (slice-predicate (cassandra_8.3.0:make-slicepredicate))
         (slice-range nil))
@@ -367,14 +371,14 @@
     (cond (cn-s
            (setf (cassandra_8.3.0:slicepredicate-column-names slice-predicate) (mapcar #'string column-names)))
           (t
-           (setf slice-range (cassandra_8.3.0:make-slicerange :reversed reversed :count most-positive-i32 :start start :finish finish))
+           (setf slice-range (cassandra_8.3.0:make-slicerange :reversed reversed :count (keyspace-slice-size keyspace) :start start :finish finish))
            (setf (cassandra_8.3.0:slicepredicate-slice-range slice-predicate) slice-range)))
     (let ((last-key-slice nil))
       (loop (let ((slice (cassandra_8.3.0:get-range-slices keyspace column-parent slice-predicate key-range consistency-level)))
               (when last-key-slice (pop slice))
               (unless slice (return))
               (loop (unless slice (return))
-                    (when (minusp (decf count)) (return))
+                    (when (and count (minusp (decf count))) (return))
                     (setf last-key-slice (pop slice))
                     (funcall op last-key-slice)
                     (setf (cassandra_8.3.0:keyrange-start-key  key-range)
