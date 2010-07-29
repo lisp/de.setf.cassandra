@@ -68,7 +68,7 @@
                                  (dolist (column-family (mapcar #'first (keyspace-description keyspace)))
                                    (let ((*row-count* 0))
                                      (declare (special *row-count*))
-                                     (dot:put-subgraph (string (gensym "CF"))
+                                     (dot:put-subgraph (string (gensym "cluster"))
                                                        #'(lambda ()
                                                            (map-range-slices #'put-row keyspace
                                                                              :column-family column-family
