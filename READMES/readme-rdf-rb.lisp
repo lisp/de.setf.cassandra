@@ -58,6 +58,21 @@
 
 (defvar +default-cache-graph+ (compute-spoc-hex-id ))
 
+(defgeneric cl-user::n3_format (object stream &optional colon at var)
+  (:documentation "Given an N3 tuple, write it to the output stream.
+ Enclude type information for any non-string encoded as a literal.")
+  
+  (:method ((stream stream) (object t) &optional colon at var)
+    ;; flip the order
+    (cl-user::n3_format object stream colon at var))
+  
+  (:method ((object list) stream &optional colon at var)
+    (declare (ignore colon var))
+    (destructuring-bind (subject predicate object) object
+      (format stream " <~a> <~a> <~a>~:[.~;~]"
+              subject predicate object at))
+    object))
+
 ;;;
 ;;; manipulating rdf statements
 ;;; from repository.rb#insert_statements
@@ -82,7 +97,7 @@
 
       (when cache-cf
         (dsc:set-attribute cache-cf +default-cache-graph+
-                           (compute-spoc-sha1-id (binary (format nil "~/n3:format/"(list subject predicate object))) nil nil nil)
+                           (compute-spoc-sha1-id (binary (format nil "~/n3_format/"(list subject predicate object))) nil nil nil)
                            ""))
       (when index-cf
         (index-predicate)
@@ -224,7 +239,7 @@
 
       (when cache-cf
         (dsc:set-attribute cache-cf +default-cache-graph+
-                           (compute-spoc-sha1-id (binary (format nil "~/n3:format/"(list subject predicate object))) nil nil nil)
+                           (compute-spoc-sha1-id (binary (format nil "~/n3_format/"(list subject predicate object))) nil nil nil)
                            nil))
       (when index-cf
         (unindex-predicate)
