@@ -4,6 +4,10 @@
 
 (cl:in-package :cassandra_2.1.0)
 
+;;; this suffices for categorically different specializers.
+;;; it does not work for map constituents, as the entire parameter is specialized as list
+;;; in the case of batch_mutate, the byte/string ambiguity is nto resolve until stream-write-string
+
 (cl:EVAL-WHEN (:COMPILE-TOPLEVEL :LOAD-TOPLEVEL :EXECUTE)
   (ORG.APACHE.THRIFT:DEF-STRUCT "get_bin_args"
     (("keyspace" NIL :ID 1 :TYPE STRING)
@@ -29,6 +33,42 @@
    ("nfe" NIL :ID 2 :TYPE (ORG.APACHE.THRIFT:STRUCT "notfoundexception"))
    ("ue" NIL :ID 3 :TYPE (ORG.APACHE.THRIFT:STRUCT "unavailableexception"))
    ("te" NIL :ID 4 :TYPE (ORG.APACHE.THRIFT:STRUCT "timedoutexception"))))
+
+
+(cl:EVAL-WHEN (:COMPILE-TOPLEVEL :LOAD-TOPLEVEL :EXECUTE)
+  (ORG.APACHE.THRIFT:DEF-STRUCT "get_range_slice_bin_args"
+    (("keyspace" NIL :ID 1 :TYPE STRING)
+     ("column_parent" NIL :ID 2 :TYPE
+      (ORG.APACHE.THRIFT:STRUCT
+       "columnparent"))
+     ("predicate" NIL :ID 3 :TYPE
+      (ORG.APACHE.THRIFT:STRUCT
+       "slicepredicate"))
+     ("start_key" NIL :ID 4 :TYPE binary)
+     ("finish_key" NIL :ID 5 :TYPE binary)
+     ("row_count" NIL :ID 6 :TYPE
+      ORG.APACHE.THRIFT:I32)
+     ("consistency_level" NIL :ID 7 :TYPE
+      (ORG.APACHE.THRIFT:ENUM
+       "ConsistencyLevel")))))
+
+(ORG.APACHE.THRIFT.IMPLEMENTATION::DEF-REQUEST-METHOD
+         CASSANDRA_2.1.0:GET-RANGE-SLICE
+         ((("keyspace" STRING 1)
+           ("column_parent" (ORG.APACHE.THRIFT:STRUCT "columnparent") 2)
+           ("predicate" (ORG.APACHE.THRIFT:STRUCT "slicepredicate") 3)
+           ("start_key" binary 4) ("finish_key" binary 5)
+           ("row_count" ORG.APACHE.THRIFT:I32 6)
+           ("consistency_level" (ORG.APACHE.THRIFT:ENUM "ConsistencyLevel") 7))
+          (ORG.APACHE.THRIFT:LIST (ORG.APACHE.THRIFT:STRUCT "keyslice")))
+         (:IDENTIFIER "get_range_slice")
+         (:CALL-STRUCT "get_range_slice_bin_args")
+         (:REPLY-STRUCT "get_range_slice_result")
+         (:EXCEPTIONS
+          ("ire" NIL :ID 1 :TYPE
+           (ORG.APACHE.THRIFT:STRUCT "invalidrequestexception"))
+          ("ue" NIL :ID 2 :TYPE (ORG.APACHE.THRIFT:STRUCT "unavailableexception"))
+          ("te" NIL :ID 3 :TYPE (ORG.APACHE.THRIFT:STRUCT "timedoutexception"))))
 
 
 (cl:EVAL-WHEN (:COMPILE-TOPLEVEL :LOAD-TOPLEVEL :EXECUTE)
