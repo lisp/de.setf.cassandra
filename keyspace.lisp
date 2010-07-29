@@ -431,20 +431,24 @@
 ;;; remove
 
 (defmethod remove ((keyspace cassandra_2.1.0:keyspace) &key
-                   key column-family super-column column
+                   (key (error "key is required."))
+                   (column-family (error "column-family is required."))
+                   super-column column
                    timestamp (clock (keyspace-clock keyspace timestamp))
                    (consistency-level (keyspace-consistency-level keyspace)))
-  (let ((column-path (cassandra_2.1.0:make-columnpath :column-family column-family
-                                                      :column column)))
+  (let ((column-path (cassandra_2.1.0:make-columnpath :column-family column-family)))
+    (when column (setf (cassandra_2.1.0:columnpath-column column-path) column))
     (when super-column (setf (cassandra_2.1.0:columnpath-super-column column-path) super-column))
     (cassandra_2.1.0:remove keyspace (keyspace-name keyspace) key column-path (cassandra_8.3.0:clock-timestamp clock) consistency-level)))
 
 (defmethod remove ((keyspace cassandra_8.3.0:keyspace) &key
-                   key column-family super-column column
+                   (key (error "key is required."))
+                   (column-family (error "column-family is required."))
+                   super-column column
                    timestamp (clock (keyspace-clock keyspace timestamp))
                    (consistency-level (keyspace-consistency-level keyspace)))
-  (let ((column-path (cassandra_8.3.0:make-columnpath :column-family column-family
-                                                      :column column)))
+  (let ((column-path (cassandra_8.3.0:make-columnpath :column-family column-family)))
+    (when column (setf (cassandra_2.1.0:columnpath-column column-path) column))
     (when super-column (setf (cassandra_8.3.0:columnpath-super-column column-path) super-column))
     (cassandra_8.3.0:remove keyspace key column-path clock consistency-level)))
 

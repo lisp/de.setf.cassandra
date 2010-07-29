@@ -121,6 +121,9 @@
            (error "Invalid column: ~s (~s): ~s ~s."
                   instance (column-family-name instance) ks (mapcar #'first (keyspace-description ks)))))))
 
+(defmethod print-object ((object column-family) stream)
+  (print-unreadable-object (object stream :identity t :type t)
+    (format stream "~s" (when (slot-boundp object 'name) (column-family-name object)))))
 
 (defmethod get-attribute ((column-family column-family) key column-name)
   (column-value (get-column column-family key column-name)))

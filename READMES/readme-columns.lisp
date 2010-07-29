@@ -11,6 +11,9 @@
 
 ;;; nb: this expects the test storage configuration from the cassandra 0.6.4 release!
 ;;; nb.1: the 2.1.0 interface requires a string column value for insert
+;;; a move to 0.7 requires moving from the .xml to the .yaml initialization and a one-time load
+;;; of the schema via the jconsole interface. running from ec2 with 'ssh -Y' it starts in about 15 min.
+;;; $ sudo apt-get install openjdk-6-jdk
 
 (let ((*compile-verbose* nil))
   (asdf:load-system :de.setf.cassandra))
@@ -189,6 +192,8 @@
 
 ;;; variations key, supercolumn, column
 
+#|
+
 ;;; (k- s- c-) => everything
 (CASSANDRA_2.1.0:GET-RANGE-SLICE
  *ks* "Keyspace1"
@@ -331,3 +336,4 @@
                    :NAME #(86 65 78 73 76 76 69)
                    :VALUE #(49 48 48)
                    :TIMESTAMP 134996243690000000 {B5B0301}> {B5B02E1}>) {B5B0201}>)
+|#
