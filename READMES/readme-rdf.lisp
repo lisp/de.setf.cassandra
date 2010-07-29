@@ -1,13 +1,14 @@
 ;;; -*- Mode: lisp; Syntax: ansi-common-lisp; Base: 10; Package: de.setf.cassandra; -*-
 
-;;; see readme-cassandra.lisp to build...
+
+;;; this illustrates an rdf store structure which usesan  SPOC keyspace
+;;; - an spoc id index for exhaustive iteration
+;;; - one each s, p, o, and c index for respective iteration
+;;; - half of the two level indices for direct 2/4 and 3/4 retrieval
+;;;
+;;;  see readme-cassandra for the load/connection steps
 
 (in-package :de.setf.cassandra)
-
-;;;  see readme-cassandra for the load/connection steps
-;;;
-
-;;; work with SPOC keyspace
 
 (defclass cassandra-spoc-index-mediator (keyspace)
   ((c-index
@@ -52,14 +53,16 @@
      ([subject.predicate.object.context] . ((:subject . 's') (:predicate . 'p') (:object . 'o') (:context . 'c') ...))
      It enumerates the respective statement's constituents.")
    (version-map
-    :initform '(("2.1.0" . cassandra-spoc-index-mediator_2.1.0)
-                ("8.3.0" . cassandra-spoc-index-mediator_8.3.0))
+    :initform '(("2.1.0" . cassandra-spoc-index-mediator_2.1.0)         ; 2010-07-29
+                ("8.3.0" . cassandra-spoc-index-mediator_8.3.0))        ; not yet
     :allocation :class))
 
   (:documentation "A keyspace of the form used by an RDF mediator."))
 
+
 (defclass cassandra-spoc-index-mediator_2.1.0 (cassandra-spoc-index-mediator cassandra_2.1.0:keyspace)
   ())
+
 
 (defclass cassandra-spoc-index-mediator_8.3.0 (cassandra-spoc-index-mediator cassandra_8.3.0:keyspace)
   ())
@@ -439,17 +442,20 @@
       (delete-supercolumn-index (store-spc-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-context s-object)
       (delete-supercolumn-index (store-spo-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-object s-context))))
 
+
+
 #|
 
 (defun test-map (test)
   (destructuring-bind (pattern &rest expected-results) test
     (let ((results ()))
-      (handler-case (apply #'map-statements *spoc* #'(lambda (subject predicate object context id)
-                                                       (declare (ignore id))
-                                                       (push (list subject predicate object context) results))
-                           pattern)
-        (error (c) (push c results)))
-      (format *trace-output* "~&~a ~:[ok~;failed: ~:*~a~]"
+      (block :map
+        (handler-bind ((error (lambda (c) (push c results) (break "error: ~a" c) (return-from :map nil))))
+          (apply #'map-statements *spoc* #'(lambda (subject predicate object context id)
+                                             (declare (ignore id))
+                                             (push (list subject predicate object context) results))
+                 pattern)))
+      (format *trace-output* "~&~a ~:[ok~;failed: ~:*~s~]"
               pattern
               (set-exclusive-or results expected-results :test #'equalp)))))
 
@@ -466,55 +472,39 @@
 (add-statement *spoc* "vanille" "scoops" "100" "2010-07-28")
 (add-statement *spoc* "vanille" "scoops" "10" "2010-07-27")
 (add-statement *spoc* "cheesecake" "slices" "2" "2010-07-28")
-(add-statement *spoc* "cheesecake" "slices" "20" "2010-07-29")
+(add-statement *spoc* "cheesecake" "cheesecake" "20" "2010-07-29")
 
+
+(add-statement *spoc* "subject" "predicate" "object" "context2")
 (delete-statement *spoc* "subject" "predicate" "object" "context")
 (map nil #'test-map
-     '(((nil nil nil nil))
-       (("vanille" nil nil nil))
-       ((nil "scoops" nil nil))
-       (("vanille" "scoops" nil nil)
-        ("vanille" "scoops" "10" "2010-07-27") ("vanille" "scoops" "100" "2010-07-28"))
-       ((nil nil "10" nil))
-       ((nil nil "100" nil))
-       (("vanille" nil "10" nil))
-       (("vanille" nil "100" nil))
-       ((nil "scoops" "10" nil))
-       ((nil "scoops" "100" nil))
-       (("vanille" "scoops" "10" nil))
-       (("vanille" "scoops" "100" nil))
-       ((nil nil nil "2010-07-27"))
-       (("vanille" nil nil "2010-07-28"))
-       (("vanille" "scoops" nil "2010-07-27"))
-       ((nil nil "10" nil "2010-07-27"))
-       ((nil nil "100" nil "2010-07-27"))
-       (("vanille" nil "10" "2010-07-27"))
-       (("vanille" nil "100" "2010-07-27"))
-       ((nil "scoops" "10" "2010-07-27"))
+     '(((nil nil nil nil) .                 (("cheesecake" "slices" "20" "2010-07-29") ("vanille" "scoops" "100" "2010-07-28")
+                                             ("cheesecake" "slices" "2" "2010-07-28") ("vanille" "scoops" "10" "2010-07-27")))
+       (("vanille" nil nil nil) .           (("vanille" "scoops" "100" "2010-07-28") ("vanille" "scoops" "10" "2010-07-27")))
+       ((nil "scoops" nil nil) .            (("vanille" "scoops" "100" "2010-07-28") ("vanille" "scoops" "10" "2010-07-27")))
+       (("vanille" "scoops" nil nil) .      (("vanille" "scoops" "10" "2010-07-27") ("vanille" "scoops" "100" "2010-07-28")))
+       ((nil nil "10" nil) .                (("vanille" "scoops" "10" "2010-07-27")))
+       ((nil nil "100" nil).                (("vanille" "scoops" "100" "2010-07-28")))
+       (("vanille" nil "10" nil) .          (("vanille" "scoops" "10" "2010-07-27")))
+       (("vanille" nil "100" nil) .         (("vanille" "scoops" "100" "2010-07-28")))
+       ((nil "scoops" "10" nil) .           (("vanille" "scoops" "10" "2010-07-27")))
+       ((nil "scoops" "100" nil) .          (("vanille" "scoops" "100" "2010-07-28")))
+       (("vanille" "scoops" "10" nil) .     (("vanille" "scoops" "10" "2010-07-27")))
+       (("vanille" "scoops" "100" nil) .    (("vanille" "scoops" "100" "2010-07-28")))
+       ((nil nil nil "2010-07-27") .        (("vanille" "scoops" "10" "2010-07-27")))
+       ((nil nil nil "2010-07-28") .        (("vanille" "scoops" "100" "2010-07-28") ("cheesecake" "slices" "2" "2010-07-28")))
+       (("vanille" nil nil "2010-07-28") .  (("vanille" "scoops" "100" "2010-07-28")))
+       (("vanille" "scoops" nil "2010-07-27") . (("vanille" "scoops" "10" "2010-07-27")))
+       ((nil nil "10" "2010-07-27") .       (("vanille" "scoops" "10" "2010-07-27")))
+       ((nil nil "100" "2010-07-28") .      (("vanille" "scoops" "100" "2010-07-28")))
+       (("vanille" nil "10" "2010-07-27") . (("vanille" "scoops" "10" "2010-07-27")))
+       (("vanille" nil "100" "2010-07-27"))     ; note scoop count
+       ((nil "scoops" "10" "2010-07-27") .  (("vanille" "scoops" "10" "2010-07-27")))
        ((nil "scoops" "100" "2010-07-27"))
-       (("vanille" "scoops" "10" "2010-07-27")
-        ("vanille" "scoops" "10" "2010-07-27"))
-       (("vanille" "scoops" "100" "2010-07-28")
-        ("vanille" "scoops" "100" "2010-07-28"))))
+       ((nil "scoops" "100" "2010-07-28") . (("vanille" "scoops" "100" "2010-07-28")))
+       (("vanille" "scoops" "10" "2010-07-27") . (("vanille" "scoops" "10" "2010-07-27")))
+       (("vanille" "scoops" "100" "2010-07-28") . (("vanille" "scoops" "100" "2010-07-28")))))
 
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil nil nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil nil nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" nil nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" nil nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil "10" nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil "10" nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" "10" nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" "10" nil)
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil nil "2010-07-27")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil nil "2010-07-28")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil nil "2010-07-27")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" nil "2010-07-27")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" nil "2010-07-27")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil "10" "2010-07-27")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil "10" "2010-07-27")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" "10" "2010-07-27")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" "10" "2010-07-21")
-(map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" "10" "2010-07-27")
 
 (defun test-spoc-case (mediator subject predicate object context)
   (spoc-case (mediator (s-subject s-predicate s-object s-context) subject predicate object context)
