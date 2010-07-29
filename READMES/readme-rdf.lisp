@@ -153,7 +153,7 @@
 ;;; (model-value t (repository-value t "asdf"))
 
 ;;;
-;;; adding statements
+;;; manipulating rdf statements
 
 (defun add-statement (mediator subject predicate object context)
   
@@ -170,6 +170,7 @@
                (dsc:set-attributes (store-spoc-index mediator) spoc-id
                                    :subject s-subject :predicate s-predicate :object s-object
                                    :context s-context)
+
                ;; the single-constituent index maps its key to the set of ids and the respective contexts
                (store-column-index (store-c-index mediator) s-context spoc-id s-context)        ; redundant. better?
                (store-column-index (store-o-index mediator) s-object spoc-id s-context)
@@ -403,47 +404,47 @@
 
       (cassandra_2.1.0:notfoundexception (c) (declare (ignore c)) nil))))
 
+(defun delete-statement (mediator subject predicate object context)
+  (let* ((s-subject (repository-value mediator subject))
+         (s-predicate (repository-value mediator predicate))
+         (s-object (repository-value mediator object))
+         (s-context (repository-value mediator context))
+         (spoc-id (compute-spoc-id s-subject s-predicate s-object s-context)))
+    (flet ((delete-column-index (index key name)
+             (when index (dsc:set-attribute index key name nil)))
+           (delete-supercolumn-index (index key sc-key name)
+             (when index (dsc:set-attribute index (list key sc-key) name nil))))
+      
+      (dolist (column-name '(:subject :predicate :object :context))
+        (dsc:set-attribute (store-spoc-index mediator) spoc-id column-name nil))
+      
+      (delete-column-index (store-c-index mediator) s-context spoc-id)
+      (delete-column-index (store-o-index mediator) s-object spoc-id)
+      (delete-column-index (store-p-index mediator) s-predicate spoc-id)
+      (delete-column-index (store-s-index mediator) s-subject spoc-id)
+      
+      (delete-supercolumn-index (store-cos-index mediator) (compute-spoc-id nil nil s-object s-context) s-subject s-predicate)
+      (delete-supercolumn-index (store-cpo-index mediator) (compute-spoc-id nil s-predicate nil  s-context) s-object s-subject)
+      (delete-supercolumn-index (store-cso-index mediator) (compute-spoc-id s-subject nil nil s-context) s-object s-predicate)
+      (delete-supercolumn-index (store-csp-index mediator) (compute-spoc-id s-subject nil nil s-context) s-predicate s-object)
+      (delete-supercolumn-index (store-poc-index mediator) (compute-spoc-id nil s-predicate s-object nil) s-context s-subject)
+      (delete-supercolumn-index (store-soc-index mediator) (compute-spoc-id s-subject nil s-object nil) s-context s-predicate)
+      (delete-supercolumn-index (store-spc-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-context s-object)
+      (delete-supercolumn-index (store-spo-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-object s-context))))
 
 #|
 
-(flet ((test-map (test)
-         (destructuring-bind (pattern &rest expected-results) test
-           (let ((results ()))
-             (handler-case (apply #'map-statements *spoc* #'(lambda (subject predicate object context id)
-                                                              (declare (ignore id))
-                                                              (push (list subject predicate object context) results))
-                                  pattern)
-               (error (c) (push c results)))
-             (format *trace-output* "~&~a ~:[ok~;failed: ~:*~a~]"
-                     pattern
-                     (set-exclusive-or results expected-results :test #'equalp))))))
-  (map nil #'test-map
-       '(((nil nil nil nil))
-         (("vanille" nil nil nil))
-         ((nil "scoops" nil nil))
-         (("vanille" "scoops" nil nil)
-          ("vanille" "scoops" "10" "2010-07-27") ("vanille" "scoops" "100" "2010-07-28"))
-         ((nil nil "10" nil))
-         ((nil nil "100" nil))
-         (("vanille" nil "10" nil))
-         (("vanille" nil "100" nil))
-         ((nil "scoops" "10" nil))
-         ((nil "scoops" "100" nil))
-         (("vanille" "scoops" "10" nil))
-         (("vanille" "scoops" "100" nil))
-         ((nil nil nil "2010-07-27"))
-         (("vanille" nil nil "2010-07-28"))
-         (("vanille" "scoops" nil "2010-07-27"))
-         ((nil nil "10" nil "2010-07-27"))
-         ((nil nil "100" nil "2010-07-27"))
-         (("vanille" nil "10" "2010-07-27"))
-         (("vanille" nil "100" "2010-07-27"))
-         ((nil "scoops" "10" "2010-07-27"))
-         ((nil "scoops" "100" "2010-07-27"))
-         (("vanille" "scoops" "10" "2010-07-27")
-          ("vanille" "scoops" "10" "2010-07-27"))
-         (("vanille" "scoops" "100" "2010-07-28")
-          ("vanille" "scoops" "100" "2010-07-28")))))
+(defun test-map (test)
+  (destructuring-bind (pattern &rest expected-results) test
+    (let ((results ()))
+      (handler-case (apply #'map-statements *spoc* #'(lambda (subject predicate object context id)
+                                                       (declare (ignore id))
+                                                       (push (list subject predicate object context) results))
+                           pattern)
+        (error (c) (push c results)))
+      (format *trace-output* "~&~a ~:[ok~;failed: ~:*~a~]"
+              pattern
+              (set-exclusive-or results expected-results :test #'equalp)))))
 
 (defparameter *c-location*
   ;; remote
@@ -460,6 +461,34 @@
 (add-statement *spoc* "cheesecake" "slices" "2" "2010-07-28")
 (add-statement *spoc* "cheesecake" "slices" "20" "2010-07-29")
 
+
+(map nil #'test-map
+     '(((nil nil nil nil))
+       (("vanille" nil nil nil))
+       ((nil "scoops" nil nil))
+       (("vanille" "scoops" nil nil)
+        ("vanille" "scoops" "10" "2010-07-27") ("vanille" "scoops" "100" "2010-07-28"))
+       ((nil nil "10" nil))
+       ((nil nil "100" nil))
+       (("vanille" nil "10" nil))
+       (("vanille" nil "100" nil))
+       ((nil "scoops" "10" nil))
+       ((nil "scoops" "100" nil))
+       (("vanille" "scoops" "10" nil))
+       (("vanille" "scoops" "100" nil))
+       ((nil nil nil "2010-07-27"))
+       (("vanille" nil nil "2010-07-28"))
+       (("vanille" "scoops" nil "2010-07-27"))
+       ((nil nil "10" nil "2010-07-27"))
+       ((nil nil "100" nil "2010-07-27"))
+       (("vanille" nil "10" "2010-07-27"))
+       (("vanille" nil "100" "2010-07-27"))
+       ((nil "scoops" "10" "2010-07-27"))
+       ((nil "scoops" "100" "2010-07-27"))
+       (("vanille" "scoops" "10" "2010-07-27")
+        ("vanille" "scoops" "10" "2010-07-27"))
+       (("vanille" "scoops" "100" "2010-07-28")
+        ("vanille" "scoops" "100" "2010-07-28"))))
 
 (map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil nil nil)
 (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil nil nil)
