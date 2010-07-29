@@ -125,18 +125,7 @@
                             do (funcall op
                                         value
                                         (column-name column)
-                                        (model-value mediator (column-value column)))))))
-         (map-spoc-columns (op index key column-names)
-           (flet ((cmv (column) (model-value mediator (column-value column))))
-             (declare (dynamic-extent #'mv))
-             (loop for column-id.c in (dsc:get-columns index key)
-                   for s-columns = (dsc:get-columns (store-spoc-index mediator)
-                                                    (column-name column-id.c)
-                                                    :column-names column-names)
-                   do (apply op 
-                             (model-value mediator (column-value column-id.c))
-                             (column-name column-id.c)
-                             (map-into s-columns #'cmv s-columns))))))
+                                        (model-value mediator (column-value column))))))))
     
     (handler-case 
       (spoc-case (mediator (s-subject s-predicate s-object s-context) subject predicate object nil)
