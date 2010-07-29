@@ -75,6 +75,7 @@
                                                     #'(lambda ()
                                                         (map-range-slices #'put-row keyspace
                                                                           :column-family column-family
+                                                                          :count most-positive-i32
                                                                           :start-key #() :finish-key #()))))))
                              :rankdir rankdir
                              :size size
