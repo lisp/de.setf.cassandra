@@ -42,7 +42,7 @@
                                        &key resources-family index-family cache-family)
   (set-keyspace-column-family instance resources-family 'resources-family :class 'super-column-family :required t)
   (set-keyspace-column-family instance index-family 'index-family :class 'super-column-family :required nil)
-  (set-keyspace-column-family instance cache-family 'cache-family :class 'super-column-family :required nil))
+  (set-keyspace-column-family instance cache-family 'cache-family :class 'standard-column-family :required nil))
 
 
 (defun compute-spoc-hex-id (&optional subject predicate object context)
