@@ -394,12 +394,14 @@
                          (columns (key-slice-columns key-slice)))
                      (flet ((cmv (cosc)
                               (model-value mediator (column-value (columnorsupercolumn-column cosc)))))
-                       (if (= (length columns) 4)
-                         (destructuring-bind (c-cosc o-cosc p-cosc s-cosc)
-                                             (key-slice-columns key-slice)
-                           (funcall continuation (cmv s-cosc) (cmv p-cosc) (cmv o-cosc) (cmv c-cosc) id))
-                         (warn "Incomplete SPOC entry: ~s . ~s"
-                               id columns))))))
+                       (case (length columns)
+                         (4 (destructuring-bind (c-cosc o-cosc p-cosc s-cosc)
+                                                (key-slice-columns key-slice)
+                              (funcall continuation (cmv s-cosc) (cmv p-cosc) (cmv o-cosc) (cmv c-cosc) id)))
+                         (0 )
+                         (t
+                          (warn "Incomplete SPOC entry: ~s . ~s"
+                                id columns)))))))
             (declare (dynamic-extent #'do-key-slice))
             (map-range-slices #'do-key-slice (column-family-keyspace spoc-index)
                               :column-family (column-family-name spoc-index)
@@ -466,7 +468,7 @@
 (add-statement *spoc* "cheesecake" "slices" "2" "2010-07-28")
 (add-statement *spoc* "cheesecake" "slices" "20" "2010-07-29")
 
-(delete-statement *spoc* "subject" "is" "wonderful" "context")
+(delete-statement *spoc* "subject" "predicate" "object" "context")
 (map nil #'test-map
      '(((nil nil nil nil))
        (("vanille" nil nil nil))
