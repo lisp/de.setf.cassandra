@@ -415,8 +415,9 @@
            (delete-supercolumn-index (index key sc-key name)
              (when index (dsc:set-attribute index (list key sc-key) name nil))))
       
-      (dolist (column-name '(:subject :predicate :object :context))
-        (dsc:set-attribute (store-spoc-index mediator) spoc-id column-name nil))
+      ;;(dolist (column-name '(:subject :predicate :object :context))
+      ;;  (dsc:set-attribute (store-spoc-index mediator) spoc-id column-name nil))
+      (remove mediator :key spoc-id :column-family (column-family-name (store-spoc-index mediator)))
       
       (delete-column-index (store-c-index mediator) s-context spoc-id)
       (delete-column-index (store-o-index mediator) s-object spoc-id)
@@ -461,7 +462,7 @@
 (add-statement *spoc* "cheesecake" "slices" "2" "2010-07-28")
 (add-statement *spoc* "cheesecake" "slices" "20" "2010-07-29")
 
-
+(delete-statement *spoc* "subject" "is" "wonderful" "context")
 (map nil #'test-map
      '(((nil nil nil nil))
        (("vanille" nil nil nil))
