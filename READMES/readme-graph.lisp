@@ -71,12 +71,12 @@
                                  (dolist (column-family (mapcar #'first (keyspace-description keyspace)))
                                    (let ((*row-count* 0))
                                      (declare (special *row-count*))
-                                     (dot:put-graph column-family
-                                                    #'(lambda ()
-                                                        (map-range-slices #'put-row keyspace
-                                                                          :column-family column-family
-                                                                          :count most-positive-i32
-                                                                          :start-key #() :finish-key #()))))))
+                                     (dot:put-subgraph column-family
+                                                       #'(lambda ()
+                                                           (map-range-slices #'put-row keyspace
+                                                                             :column-family column-family
+                                                                             :count nil
+                                                                             :start-key #() :finish-key #()))))))
                              :rankdir rankdir
                              :size size
                              ;; :overlap "scale"
