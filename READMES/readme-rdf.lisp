@@ -139,6 +139,8 @@
   (compute-spoc-md5-id subject predicate object context))
 
 (defgeneric repository-value (mediator object)
+  (:method ((mediator t) (object null))
+    nil)
   (:method ((mediator t) (object t))
     (let* ((s (write-to-string object))
            (v (make-array (length s) :element-type '(unsigned-byte 8))))
@@ -168,20 +170,21 @@
                (dsc:set-attributes (store-spoc-index mediator) spoc-id
                                    :subject s-subject :predicate s-predicate :object s-object
                                    :context s-context)
-               
-               (store-column-index (store-c-index mediator) s-context spoc-id s-context)
+               ;; the single-constituent index maps its key to the set of ids and the respective contexts
+               (store-column-index (store-c-index mediator) s-context spoc-id s-context)        ; redundant. better?
                (store-column-index (store-o-index mediator) s-object spoc-id s-context)
                (store-column-index (store-p-index mediator) s-predicate spoc-id s-context)
                (store-column-index (store-s-index mediator) s-subject spoc-id s-context)
                
-               (store-supercolumn-index (store-cos-index mediator) (compute-spoc-id nil nil s-object s-context) s-subject spoc-id s-predicate)
-               (store-supercolumn-index (store-cpo-index mediator) (compute-spoc-id nil s-predicate nil  s-context) s-object spoc-id s-subject)
-               (store-supercolumn-index (store-cso-index mediator) (compute-spoc-id s-subject nil nil s-context) s-object spoc-id s-predicate)
-               (store-supercolumn-index (store-csp-index mediator) (compute-spoc-id s-subject nil nil s-context) s-predicate spoc-id s-object)
-               (store-supercolumn-index (store-poc-index mediator) (compute-spoc-id nil s-predicate s-object nil) s-context spoc-id s-subject)
-               (store-supercolumn-index (store-soc-index mediator) (compute-spoc-id s-subject nil s-object nil) s-context spoc-id s-predicate)
-               (store-supercolumn-index (store-spc-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-context spoc-id s-object)
-               (store-supercolumn-index (store-spo-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-object spoc-id s-context)))
+               ;; the multi-constituent index maps the 3/4 quad to the fourth constituent and the respective id
+               (store-supercolumn-index (store-cos-index mediator) (compute-spoc-id nil nil s-object s-context) s-subject s-predicate spoc-id)
+               (store-supercolumn-index (store-cpo-index mediator) (compute-spoc-id nil s-predicate nil  s-context) s-object s-subject spoc-id)
+               (store-supercolumn-index (store-cso-index mediator) (compute-spoc-id s-subject nil nil s-context) s-object s-predicate spoc-id)
+               (store-supercolumn-index (store-csp-index mediator) (compute-spoc-id s-subject nil nil s-context) s-predicate s-object spoc-id)
+               (store-supercolumn-index (store-poc-index mediator) (compute-spoc-id nil s-predicate s-object nil) s-context s-subject spoc-id)
+               (store-supercolumn-index (store-soc-index mediator) (compute-spoc-id s-subject nil s-object nil) s-context s-predicate spoc-id)
+               (store-supercolumn-index (store-spc-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-context s-object spoc-id)
+               (store-supercolumn-index (store-spo-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-object s-context spoc-id)))
 
       (handler-case (progn (dsc:get-attribute (store-spoc-index mediator) spoc-id :context)
                            ;; if this completes, the statement is already present in the graph
@@ -196,11 +199,6 @@
          spoc-id)))))
 
 
-;;; (defparameter *spoc* (client *c-location* :name "SPOC" :protocol 'cassandra-spoc-index-mediator))
-
-;;; (add-statement *spoc* "subject" "predicate" "object" "context")
-;;; (add-statement *spoc* "subject" "is" "mysterious" "context")
-;;; (add-statement *spoc* "subject" "is" "wonderful" "context")
 
 (defmacro spoc-case ((mediator (sub pre obj con) subject predicate object context)
                      &key spoc spo (spo- spo) spc (sp-c spc) sp (sp-- sp)
@@ -211,7 +209,7 @@
          (,pre (repository-value ,mediator ,predicate))
          (,obj (repository-value ,mediator ,object))
          (,con (repository-value ,mediator ,context)))
-     (ecase (logior (if ,sub #b1000 0) (if ,pre #b0100 0) (if ,obj #b0010 0) (if ,con #b0001 0))
+     (ecase (print (logior (if ,sub #b1000 0) (if ,pre #b0100 0) (if ,obj #b0010 0) (if ,con #b0001 0)))
        (#b1111 ,spoc)
        (#b1110 ,spo-)
        (#b1101 ,sp-c)
@@ -229,6 +227,8 @@
        (#b0001 ,---c)
        (#b0000 ,----))))
 
+#+digitool
+(setf (ccl:assq 'spoc-case ccl:*fred-special-indent-alist*) 1)
 
 (defun map-statements (mediator continuation subject predicate object context)
   ;; indices
@@ -239,33 +239,33 @@
            ;; given the terms for just the super-column row, iterate over all identifier supercolumns
            (if super-column-key
              (loop for column in (dsc:get-columns index (list row-key super-column-key))
-                   do (funcall continuation
+                   do (funcall op
                                (model-value mediator (column-name column))
-                               (model-value mediator (column-value column))))
-             (loop for (key . columns) in (dsc:get-columns index row-key)
-                   for value = (model-value mediator key)
+                               (column-value column)))
+             (loop for ((nil supercolumn-key) . columns) in (dsc:get-columns index row-key)
+                   for value = (model-value mediator supercolumn-key)
                    do (loop for column in columns
                             do (funcall op
                                         value
                                         (model-value mediator (column-name column))
-                                        (model-value mediator (column-value column)))))))
+                                        (column-value column))))))
          (map-spoc-columns (op index key column-names)
-           (flet ((mv (s-value) (model-value mediator s-value)))
+           (flet ((cmv (column) (model-value mediator (column-value column))))
              (declare (dynamic-extent #'mv))
              (loop for column-id.c in (dsc:get-columns index key)
-                   for s-constituents = (dsc:get-attributes (store-spoc-index mediator)
-                                                            (column-name column-id.c)
-                                                            :column-names column-names)
+                   for s-columns = (dsc:get-columns (store-spoc-index mediator)
+                                                    (column-name column-id.c)
+                                                    :column-names column-names)
                    do (apply op 
                              (model-value mediator (column-value column-id.c))
-                             (model-value mediator (column-name column-id.c))
-                             (map-into s-constituents #'mv s-constituents))))))
+                             (column-name column-id.c)
+                             (map-into s-columns #'cmv s-columns))))))
     
     (handler-case 
       (spoc-case (mediator (s-subject s-predicate s-object s-context) subject predicate object context)
         :spoc                           ; check for a context-specific statement
         (let ((spoc-id (compute-spoc-id s-subject s-predicate s-object s-context)))
-          (when (dsc:get-attributes (store-spoc-index mediator) spoc-id :count 0)
+          (when (dsc:get-attributes (store-spoc-index mediator) spoc-id :column-names '(:context))
             ;; if it completes with an equivalent object
             (funcall continuation subject predicate object context spoc-id)))
         
@@ -273,12 +273,12 @@
         (flet ((do-constituents (context id)
                  (funcall continuation subject predicate object context id)))
           (declare (dynamic-extent #'do-constituents))
-          (map-supercolumn-family #'do-constituents (store-cpo-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-object))
+          (map-supercolumn-family #'do-constituents (store-spo-index mediator) (compute-spoc-id s-subject s-predicate nil nil) s-object))
         
         :sp-c                           ; retrieve for subject and predicate in the context
         (let ((spc-index (store-spc-index mediator))
               (csp-index (store-csp-index mediator)))
-          (flet ((do-constituents (subject id)
+          (flet ((do-constituents (object id)
                    (funcall continuation subject predicate object context id)))
             (declare (dynamic-extent #'do-constituents))
             (cond (spc-index
@@ -286,11 +286,11 @@
                   (csp-index
                    (map-supercolumn-family #'do-constituents csp-index (compute-spoc-id s-subject nil nil s-context) s-predicate))
                   (t
-                   (flet ((do-constituents (test-context id test-subject test-predicate)
+                   (flet ((do-constituents (test-context id test-predicate test-subject)
                             (when (and (equal subject test-subject) (equal predicate test-predicate) (equal context test-context))
                               (funcall continuation subject predicate object context id))))
                      (declare (dynamic-extent #'do-constituents))
-                     (map-spoc-columns #'do-constituents (store-o-index mediator) s-subject '(:subject :predicate)))))))
+                     (map-spoc-columns #'do-constituents (store-o-index mediator) s-subject '(:predicate :subject)))))))
         
         :sp--                           ; look for subject and predicates across contexts
         (flet ((do-constituents (object context id)
@@ -309,11 +309,11 @@
                   (cso-index
                    (map-supercolumn-family #'do-constituents cso-index (compute-spoc-id s-subject nil nil s-context) s-object))
                   (t
-                   (flet ((do-constituents (test-context id test-subject test-object)
+                   (flet ((do-constituents (test-context id test-object test-subject)
                             (when (and (equal subject test-subject) (equal object test-object) (equal context test-context))
                               (funcall continuation subject predicate object context id))))
                      (declare (dynamic-extent #'do-constituents))
-                     (map-spoc-columns #'do-constituents (store-p-index mediator) s-subject '(:subject :object)))))))
+                     (map-spoc-columns #'do-constituents (store-p-index mediator) s-subject '(:object :subject)))))))
         
         :s-o-                           ; retrieve s.o across contexts
         (flet ((do-constituents (context predicate id)
@@ -328,10 +328,10 @@
           (map-supercolumn-family #'do-constituents (store-cso-index mediator) (compute-spoc-id s-subject nil nil s-context)))
         
         :s---                           ; retrieve all s across all contexts
-        (flet ((do-constituents (context id predicate object)
+        (flet ((do-constituents (context id object predicate)
                  (funcall continuation subject predicate object context id)))
           (declare (dynamic-extent #'do-constituents))
-          (map-spoc-columns #'do-constituents (store-s-index mediator) s-subject '(:predicate :object)))
+          (map-spoc-columns #'do-constituents (store-s-index mediator) s-subject '(:object :predicate)))
         
         :-poc                          ; look for p.o in the context
         (let ((poc-index (store-poc-index mediator))
@@ -344,11 +344,11 @@
                   (cpo-index
                    (map-supercolumn-family #'do-constituents cpo-index (compute-spoc-id nil s-predicate nil s-context) s-object))
                   (t
-                   (flet ((do-constituents (test-context id test-predicate test-object)
+                   (flet ((do-constituents (test-context id test-object test-predicate)
                             (when (and (equal predicate test-predicate) (equal object test-object) (equal context test-context))
                               (funcall continuation subject predicate object context id))))
                      (declare (dynamic-extent #'do-constituents))
-                     (map-spoc-columns #'do-constituents (store-s-index mediator) s-subject '(:predicate :object)))))))
+                     (map-spoc-columns #'do-constituents (store-s-index mediator) s-subject '(:object :predicate)))))))
         
         :-po-                         ; retrieve p.o across contexts
         (flet ((do-constituents (context subject id)
@@ -363,10 +363,10 @@
           (map-supercolumn-family #'do-constituents (store-cpo-index mediator) (compute-spoc-id nil s-predicate nil s-context)))
         
         :-p--                           ; retrieve all p across all contexts
-        (flet ((do-constituents (context id subject object)
+        (flet ((do-constituents (context id object subject)
                  (funcall continuation subject predicate object context id)))
           (declare (dynamic-extent #'do-constituents))
-          (map-spoc-columns #'do-constituents (store-p-index mediator) s-predicate '(:subject :object)))
+          (map-spoc-columns #'do-constituents (store-p-index mediator) s-predicate '(:object :subject)))
         
         :--oc                         ; retrieve all o in the context
         (flet ((do-constituents (subject predicate id)
@@ -375,23 +375,123 @@
           (map-supercolumn-family #'do-constituents (store-cos-index mediator) (compute-spoc-id nil nil s-object s-context)))
         
         :--o-                           ; retrieve all o across all contexts
-        (flet ((do-constituents (context id subject predicate)
+        (flet ((do-constituents (context id predicate subject)
                  (funcall continuation subject predicate object context id)))
           (declare (dynamic-extent #'do-constituents))
-          (map-spoc-columns #'do-constituents (store-o-index mediator) s-object '(:subject :predicate)))
+          (map-spoc-columns #'do-constituents (store-o-index mediator) s-object '(:predicate :subject)))
         
         :---c                         ; retrieve all from a context
-        (flet ((do-constituents (context id subject predicate object)
+        (flet ((do-constituents (context id object predicate subject)
                  (funcall continuation subject predicate object context id)))
           (declare (dynamic-extent #'do-constituents))
-          (map-spoc-columns #'do-constituents (store-c-index mediator) s-context '(:subject :predicate :object)))
+          (map-spoc-columns #'do-constituents (store-c-index mediator) s-context '(:object :predicate :subject)))
         
         :----                         ; retrieve all statements
-        (multiple-value-bind (s-subject s-predicate s-object s-context s-id)
-                             (dsc:get-attributes (store-spoc-index mediator) nil :column-names '(:subject :predicate :object :context :id))
-          (funcall continuation (model-value mediator s-subject)
-                   (model-value mediator s-predicate)
-                   (model-value mediator s-object)
-                   (model-value mediator s-context)
-                   (model-value mediator s-id))))
+        (let ((spoc-index (store-spoc-index mediator)))
+          (flet ((do-key-slice (key-slice)
+                   (let ((id (keyslice-key key-slice)))
+                     (flet ((cmv (cosc)
+                              (model-value mediator (column-value (columnorsupercolumn-column cosc)))))
+                       (destructuring-bind (c-cosc o-cosc p-cosc s-cosc)
+                                           (key-slice-columns key-slice)
+                         (funcall continuation (cmv s-cosc) (cmv p-cosc) (cmv o-cosc) (cmv c-cosc)
+                                  (map 'vector #'char-code id)))))))
+            (declare (dynamic-extent #'do-key-slice))
+            (map-range-slices #'do-key-slice (column-family-keyspace spoc-index)
+                              :column-family (column-family-name spoc-index)
+                              :count (column-family-slice-size spoc-index)
+                              :start-key "" :finish-key ""))))
+
       (cassandra_2.1.0:notfoundexception (c) (declare (ignore c)) nil))))
+
+
+#|
+
+(flet ((test-map (test)
+         (destructuring-bind (pattern &rest expected-results) test
+           (let ((results ()))
+             (handler-case (apply #'map-statements *spoc* #'(lambda (subject predicate object context id)
+                                                              (declare (ignore id))
+                                                              (push (list subject predicate object context) results))
+                                  pattern)
+               (error (c) (push c results)))
+             (format *trace-output* "~&~a ~:[ok~;failed: ~:*~a~]"
+                     pattern
+                     (set-exclusive-or results expected-results :test #'equalp))))))
+  (map nil #'test-map
+       '(((nil nil nil nil))
+         (("vanille" nil nil nil))
+         ((nil "scoops" nil nil))
+         (("vanille" "scoops" nil nil)
+          ("vanille" "scoops" "10" "2010-07-27") ("vanille" "scoops" "100" "2010-07-28"))
+         ((nil nil "10" nil))
+         ((nil nil "100" nil))
+         (("vanille" nil "10" nil))
+         (("vanille" nil "100" nil))
+         ((nil "scoops" "10" nil))
+         ((nil "scoops" "100" nil))
+         (("vanille" "scoops" "10" nil))
+         (("vanille" "scoops" "100" nil))
+         ((nil nil nil "2010-07-27"))
+         (("vanille" nil nil "2010-07-28"))
+         (("vanille" "scoops" nil "2010-07-27"))
+         ((nil nil "10" nil "2010-07-27"))
+         ((nil nil "100" nil "2010-07-27"))
+         (("vanille" nil "10" "2010-07-27"))
+         (("vanille" nil "100" "2010-07-27"))
+         ((nil "scoops" "10" "2010-07-27"))
+         ((nil "scoops" "100" "2010-07-27"))
+         (("vanille" "scoops" "10" "2010-07-27")
+          ("vanille" "scoops" "10" "2010-07-27"))
+         (("vanille" "scoops" "100" "2010-07-28")
+          ("vanille" "scoops" "100" "2010-07-28")))))
+
+
+ (defparameter *spoc* (client *c-location* :name "SPOC" :protocol 'cassandra-spoc-index-mediator))
+
+ (add-statement *spoc* "vanille" "scoops" "100" "2010-07-28")
+ (add-statement *spoc* "vanille" "scoops" "10" "2010-07-27")
+ (add-statement *spoc* "cheesecake" "slices" "2" "2010-07-28")
+ (add-statement *spoc* "cheesecake" "slices" "20" "2010-07-29")
+
+
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil nil nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil nil nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" nil nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" nil nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil "10" nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil "10" nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" "10" nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" "10" nil)
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil nil "2010-07-27")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil nil "2010-07-28")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil nil "2010-07-27")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" nil "2010-07-27")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" nil "2010-07-27")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil nil "10" "2010-07-27")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" nil "10" "2010-07-27")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) nil "scoops" "10" "2010-07-27")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" "10" "2010-07-21")
+ (map-statements *spoc* #'(lambda (&rest args) (print args)) "vanille" "scoops" "10" "2010-07-27")
+
+(defun test-spoc-case (mediator subject predicate object context)
+  (spoc-case (mediator (s-subject s-predicate s-object s-context) subject predicate object context)
+    :spoc :spoc
+    :spo- :spo-
+    :sp-c :sp-c
+    :sp-- :sp--
+    :s-oc :s-oc
+    :s-o- :s-o-
+    :s--c :s--c
+    :s--- :s---
+    :-poc :-poc
+    :-po- :-po-
+    :-p-c :-p-c
+    :-p-- :-p--
+    :--oc :--oc
+    :--o- :--o-
+    :---c :---c
+    :---- :----))
+
+(test-spoc-case t 1 nil 2 nil)
+|#
