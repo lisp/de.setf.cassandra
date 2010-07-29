@@ -354,7 +354,8 @@
                     (when (and count (minusp (decf count))) (return))
                     (setf last-key-slice (pop slice))
                     (funcall op last-key-slice)
-                    (setf start-key (cassandra_2.1.0:keyslice-key last-key-slice))))))))
+                    (setf (cassandra_2.1.0:keyrange-start-key  key-range)
+                          (cassandra_2.1.0:keyslice-key last-key-slice))))))))
 
 
 (defmethod map-range-slices (op (keyspace cassandra_8.3.0:keyspace) &key
