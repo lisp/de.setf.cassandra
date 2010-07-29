@@ -185,9 +185,7 @@
   (:method ((object symbol))
     (trivial-utf-8:string-to-utf-8-bytes (symbol-name object)))
   (:method ((object number))
-    (let* ((string (princ-to-string object))
-           (buffer (make-array (length string) :element-type '(unsigned-byte 8))))
-      (map-into buffer #'char-code string))))
+    (map 'vector #'char-code (princ-to-string object))))
 
 
 (macrolet ((def-binary-writer (name &key (types '(string symbol))
@@ -253,18 +251,22 @@
     ;; allow for null result from a retrieval
     nil)
   (:method ((cosc cassandra_2.1.0:columnorsupercolumn))
-    (cassandra_2.1.0:columnorsupercolumn-column cosc))
+    (when (slot-boundp cosc 'cassandra_2.1.0::column)
+      (cassandra_2.1.0:columnorsupercolumn-column cosc)))
   (:method ((cosc cassandra_8.3.0:columnorsupercolumn))
-    (cassandra_8.3.0:columnorsupercolumn-column cosc)))
+    (when (slot-boundp cosc 'cassandra_8.3.0::column)
+      (cassandra_8.3.0:columnorsupercolumn-column cosc))))
 
 (defgeneric columnorsupercolumn-super-column (column-or-super-column)
   (:method ((cosc null))
     ;; allow for null result from a retrieval
     nil)
   (:method ((cosc cassandra_2.1.0:columnorsupercolumn))
-    (cassandra_2.1.0:columnorsupercolumn-super-column cosc))
+    (when (slot-boundp cosc 'cassandra_2.1.0::super-column)
+      (cassandra_2.1.0:columnorsupercolumn-super-column cosc)))
   (:method ((cosc cassandra_8.3.0:columnorsupercolumn))
-    (cassandra_8.3.0:columnorsupercolumn-super-column cosc)))
+    (when (slot-boundp cosc 'cassandra_8.3.0::super-column)
+      (cassandra_8.3.0:columnorsupercolumn-super-column cosc))))
 
 (defgeneric keyslice-key (key-slice)
   (:method ((key-slice cassandra_2.1.0:keyslice))
