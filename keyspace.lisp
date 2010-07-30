@@ -85,7 +85,7 @@
 
 
 (defclass cassandra_2.1.0:keyspace (keyspace)
-  ((version :initform "0.6.4" :alloction :class))
+  ((version :initform "0.6.4" :allocation :class))
   (:documentation "The keyspace protocol class for cassandra 0.6.4 w/api 2.1.0"))
 
 (defclass cassandra_8.3.0:keyspace (keyspace)
