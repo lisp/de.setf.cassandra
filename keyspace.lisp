@@ -39,7 +39,12 @@
     :initform nil :initarg :description
     :type list
     :reader get-keyspace-description :writer setf-keyspace-description
-    :documentation "Caches the result of describe-keyspace.")
+    :documentation "Caches a list of descriptions of keyspaces present in the store.")
+   (keyspaces
+    :initform nil :initarg :keyspaces
+    :type list
+    :reader get-keyspace-keyspaces :writer setf-keyspace-keyspaces
+    :documentation "Caches a list of keyspaces present in the store.")
    (clock
     :initform (cassandra_8.3.0:make-clock :timestamp (uuid::get-timestamp))
     :allocation :class
@@ -53,7 +58,7 @@
     :initform '(("2.1.0" . cassandra_2.1.0:keyspace)
                 ("8.3.0" . cassandra_8.3.0:keyspace))
     :allocation :class
-    :reader keyspace-version-map))
+    :reader keyspace-version-class-map))
 
   (:documentation "A keyspace represents thrift protocol connection to a cassandra instance for access to 
  a particular keyspace. It provides cached state and defaults for 
@@ -80,11 +85,11 @@
 
 
 (defclass cassandra_2.1.0:keyspace (keyspace)
-  ((version :initform "0.6.4"))
+  ((version :initform "0.6.4" :alloction :class))
   (:documentation "The keyspace protocol class for cassandra 0.6.4 w/api 2.1.0"))
 
 (defclass cassandra_8.3.0:keyspace (keyspace)
-  ((version :initform "0.7.0"))
+  ((version :initform "0.7.0" :allocation :class))
   (:documentation "The keyspace protocol class for cassandra 0.7.0 w/api 8.3.0"))
 
 
@@ -100,16 +105,16 @@
 (defmethod initialize-instance :after ((instance keyspace) &key)
   (let ((version (describe-version instance)))
     (unless (equal version (keyspace-version instance))
-      (let ((new-class (rest (assoc version (keyspace-version-map instance) :test #'equal))))
+      (let ((new-class (rest (assoc version (keyspace-version-class-map instance) :test #'equal))))
         (cond ((null new-class)
                (error "Service version not supported: ~s. Expected one of: ~s."
-                      version (mapcar #'first (keyspace-version-map instance))))
+                      version (mapcar #'first (keyspace-version-class-map instance))))
               ((eq new-class (type-of instance)))
               ((subtypep new-class (type-of instance))
                (change-class instance new-class))
               (t
-               (error "Version requires an invalid implementation: ~s; ~s."
-                      version new-class)))))))
+               (error "Version requires an implementation of a different type: ~s; ~s, ~s."
+                      version new-class (type-of instance))))))))
 
 (defmethod initialize-instance :after ((instance cassandra_8.3.0:keyspace) &key)
   (cassandra_8.3.0:set-keyspace instance (keyspace-name instance)))
@@ -126,10 +131,18 @@
 ;;;
 ;;; utility-operators
 
+;;; these are invoked latest in the :after initialize instance to obtain information for
+;;; adjusting the class to match the keyspaces present in the store.
+
 (defgeneric keyspace-description (keyspace)
   (:method ((keyspace keyspace))
     (or (get-keyspace-description keyspace)
         (setf-keyspace-description (describe-keyspace keyspace) keyspace))))
+
+(defgeneric keyspace-keyspaces (keyspace)
+  (:method ((keyspace keyspace))
+    (or (get-keyspace-keyspaces keyspace)
+        (setf-keyspace-keyspaces (describe-keyspaces keyspace) keyspace))))
 
 
 
