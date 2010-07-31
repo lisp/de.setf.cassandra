@@ -104,7 +104,7 @@
     (declare (dynamic-extent args))
     (apply #'thrift:client location :protocol protocol args)))
 
-(defmethod initialize-instance :after ((instance keyspace) &key)
+(defmethod initialize-instance :after ((instance keyspace) &rest initargs)
   (let ((concrete-class (compute-keyspace-class instance)))
     (cond ((typep instance concrete-class))
           ((subtypep concrete-class (type-of instance))
@@ -113,7 +113,7 @@
            (error "Service requires an incompatible implementation: ~s, ~s."
                   concrete-class (type-of instance)))))
   ;; once the effective class is set
-  (keyspace-bind-columns instance))
+  (apply #'keyspace-bind-columns instance initargs))
 
 (defmethod initialize-instance :after ((instance cassandra_8.3.0:keyspace) &key)
   (cassandra_8.3.0:set-keyspace instance (keyspace-name instance)))
@@ -136,8 +136,8 @@
                service-version (mapcar #'first (keyspace-version-class-map keyspace))))
       new-class)))
 
-(defgeneric keyspace-bind-columns (keyspace &key)
-  (:method ((keyspace keyspace) &key) ))
+(defgeneric keyspace-bind-columns (keyspace &key &allow-other-keys)
+  (:method ((keyspace keyspace) &key &allow-other-keys) ))
 
 ;;;
 ;;; utility-operators
@@ -618,6 +618,10 @@
 
 
 ;;; describe_keyspaces
+
+(defmethod describe-keyspaces ((keyspace keyspace))
+  ;; get by with the earliest version
+  (cassandra_2.1.0:describe-keyspaces keyspace))
 
 (defmethod describe-keyspaces ((keyspace cassandra_2.1.0:keyspace))
   (cassandra_2.1.0:describe-keyspaces keyspace))
