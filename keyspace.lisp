@@ -105,18 +105,13 @@
     (apply #'thrift:client location :protocol protocol args)))
 
 (defmethod initialize-instance :after ((instance keyspace) &key)
-  (let ((version (describe-version instance)))
-    (unless (equal version (keyspace-version instance))
-      (let ((new-class (rest (assoc version (keyspace-version-class-map instance) :test #'equal))))
-        (cond ((null new-class)
-               (error "Service version not supported: ~s. Expected one of: ~s."
-                      version (mapcar #'first (keyspace-version-class-map instance))))
-              ((eq new-class (type-of instance)))
-              ((subtypep new-class (type-of instance))
-               (change-class instance new-class))
-              (t
-               (error "Version requires an implementation of a different type: ~s; ~s, ~s."
-                      version new-class (type-of instance)))))))
+  (let ((concrete-class (compute-keyspace-class instance)))
+    (cond ((typep instance concrete-class))
+          ((subtypep concrete-class (type-of instance))
+           (change-class instance concrete-class))
+          (t
+           (error "Service requires an incompatible implementation: ~s, ~s."
+                  concrete-class (type-of instance)))))
   ;; once the effective class is set
   (keyspace-bind-columns instance))
 
@@ -130,6 +125,16 @@
       (setf (cassandra_8.3.0:clock-timestamp clock) (or timestamp (uuid::get-timestamp)))
       clock)))
 
+
+(defgeneric compute-keyspace-class (keyspace)
+  (:method ((keyspace keyspace))
+    "The base method is based on version only."
+    (let* ((service-version (describe-version keyspace))
+           (new-class (rest (assoc service-version (keyspace-version-class-map keyspace) :test #'equal))))
+      (unless new-class
+        (error "Service version not supported: ~s. Expected one of: ~s."
+               service-version (mapcar #'first (keyspace-version-class-map keyspace))))
+      new-class)))
 
 (defgeneric keyspace-bind-columns (keyspace &key)
   (:method ((keyspace keyspace) &key) ))

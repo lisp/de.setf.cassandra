@@ -43,6 +43,7 @@
    :columnorsupercolumn-column
    :columnorsupercolumn-column-family
    :columnorsupercolumn-super-column
+   :compute-keyspace-class
    :batch-mutate
    :check-schema-agreement
    :describe-cluster-name
