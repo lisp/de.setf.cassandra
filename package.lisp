@@ -84,6 +84,7 @@
    :set-attribute
    :set-attributes
    :set-keyspace-column-family
+   :standard-column-family
    :super-column-family
    :supercolumn-name
    :supercolumn-columns
