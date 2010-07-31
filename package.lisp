@@ -62,6 +62,7 @@
    :keyslice-columns
    :keyslice-key
    :keyspace
+   :keyspace-bind-columns
    :keyspace-clock
    :keyspace-consistency-level
    :keyspace-description

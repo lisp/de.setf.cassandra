@@ -58,7 +58,9 @@
     :initform '(("2.1.0" . cassandra_2.1.0:keyspace)
                 ("8.3.0" . cassandra_8.3.0:keyspace))
     :allocation :class
-    :reader keyspace-version-class-map))
+    :reader keyspace-version-class-map
+    :documentation "Maps the _protocol_ version to the class which supports it. This implies the server version as
+     as 2.* is .6 and 8.* is .7, but the server does not report it actual version."))
 
   (:documentation "A keyspace represents thrift protocol connection to a cassandra instance for access to 
  a particular keyspace. It provides cached state and defaults for 
@@ -114,7 +116,9 @@
                (change-class instance new-class))
               (t
                (error "Version requires an implementation of a different type: ~s; ~s, ~s."
-                      version new-class (type-of instance))))))))
+                      version new-class (type-of instance)))))))
+  ;; once the effective class is set
+  (keyspace-bind-columns instance))
 
 (defmethod initialize-instance :after ((instance cassandra_8.3.0:keyspace) &key)
   (cassandra_8.3.0:set-keyspace instance (keyspace-name instance)))
@@ -127,6 +131,8 @@
       clock)))
 
 
+(defgeneric keyspace-bind-columns (keyspace &key)
+  (:method ((keyspace keyspace) &key) ))
 
 ;;;
 ;;; utility-operators
