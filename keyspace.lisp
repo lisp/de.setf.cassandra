@@ -158,10 +158,7 @@
                  cf-name class (rest (assoc "Type" cf-description :test #'string-equal))))
         (when required
           (error "The column family is required: ~s." cf-name)))))
-  (:method ((keyspace keyspace) (cf column-family) slot-name &key (class 'standard-column-family) required)
-    (declare (ignore required))
-    (assert (typep cf class) () "Supplied column family is not the correct type: ~s: ~s: ~s." slot-name cf class)
-    (setf (slot-value keyspace slot-name) cf))
+
   (:method ((keyspace keyspace) (cf null) slot-name &key class (required t))
     (declare (ignore class))
     (when required

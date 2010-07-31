@@ -145,6 +145,13 @@
                (t object))))
     (mapcar #'walk-value (apply #'get-columns column-family key args))))
 
+(defmethod set-keyspace-column-family ((keyspace keyspace) (cf column-family) slot-name
+                                       &key (class 'standard-column-family) required)
+  (declare (ignore required))
+  (assert (typep cf class) () "Supplied column family is not the correct type: ~s: ~s: ~s." slot-name cf class)
+  (setf (slot-value keyspace slot-name) cf))
+
+
 
 ;;;
 ;;; standard column family operators expect the column key to map to a sequence of columns.
