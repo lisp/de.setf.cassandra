@@ -249,15 +249,15 @@
 
 (defparameter *rdfrb* (client *c-location* :name "RDF" :protocol 'cassandra-rdfrb-index-mediator))
 
-(add-statement *rdfrb* "http://rdf.rubyforge.org/" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://usefulinc.com/ns/doap#Project" "2010-07-20")
-(add-statement *rdfrb* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://ar.to/#self" "2010-07-30")
-(add-statement *rdfrb* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://bhuga.net/#ben" "2010-07-30")
+(add-statement.rb *rdfrb* "http://rdf.rubyforge.org/" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://usefulinc.com/ns/doap#Project" "2010-07-20")
+(add-statement.rb *rdfrb* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://ar.to/#self" "2010-07-30")
+(add-statement.rb *rdfrb* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://bhuga.net/#ben" "2010-07-30")
 
-(add-statement *rdfrb* "http://ar.to/#self" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
-(add-statement *rdfrb* "http://ar.to/#self" "http://xmlns.com/foaf/0.1/name" "Arto Bendiken")
+(add-statement.rb *rdfrb* "http://ar.to/#self" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
+(add-statement.rb *rdfrb* "http://ar.to/#self" "http://xmlns.com/foaf/0.1/name" "Arto Bendiken" "2010-07-30")
 
-(add-statement *rdfrb* "http://bhuga.net/#ben" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
-(add-statement *rdfrb* "http://bhuga.net/#ben" "http://xmlns.com/foaf/0.1/name" "Ben Lavender" "2010-07-30")
+(add-statement.rb *rdfrb* "http://bhuga.net/#ben" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
+(add-statement.rb *rdfrb* "http://bhuga.net/#ben" "http://xmlns.com/foaf/0.1/name" "Ben Lavender" "2010-07-30")
 
-
+(graph-keyspace *rdfrb* "READMES/rdfrb.dot")
 |#

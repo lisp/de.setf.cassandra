@@ -489,9 +489,8 @@
 (add-statement *spoc* "cheesecake" "slices" "2" "2010-07-28")
 (add-statement *spoc* "cheesecake" "cheesecake" "20" "2010-07-29")
 
+(graph-keyspace *spoc* "READMES/rdfspoc2.dot")
 
-(add-statement *spoc* "subject" "predicate" "object" "context2")
-(delete-statement *spoc* "subject" "predicate" "object" "context")
 (map nil #'test-map
      '(((nil nil nil nil) .                 (("cheesecake" "slices" "20" "2010-07-29") ("vanille" "scoops" "100" "2010-07-28")
                                              ("cheesecake" "slices" "2" "2010-07-28") ("vanille" "scoops" "10" "2010-07-27")))
@@ -541,4 +540,33 @@
     :---- :----))
 
 (test-spoc-case t 1 nil 2 nil)
+
+(defun clear-keyspace (keyspace)
+  (dolist (column-family (mapcar #'first (keyspace-description keyspace)))
+    (flet ((clear-keyslice (keyslice)
+             (let ((key (keyslice-key keyslice)))
+               (cassandra_2.1.0:remove keyspace (keyspace-name keyspace)
+                                       key (cassandra_2.1.0:make-columnpath :column-family column-family)
+                                       (cassandra_8.3.0:clock-timestamp (keyspace-clock keyspace))
+                                       (keyspace-consistency-level keyspace)))))
+      (map-range-slices #'clear-keyslice keyspace
+                        :column-family column-family
+                        :count nil
+                        :start-key #() :finish-key #()))))
+
+;;; (clear-keyspace *spoc*)
+
+;;; rdf.rb example
+
+(add-statement *spoc* "http://rdf.rubyforge.org/" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://usefulinc.com/ns/doap#Project" "2010-07-30")
+(add-statement *spoc* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://ar.to/#self" "2010-07-30")
+(add-statement *spoc* "http://rdf.rubyforge.org/" "http://usefulinc.com/ns/doap#developer" "http://bhuga.net/#ben" "2010-07-30")
+
+(add-statement *spoc* "http://ar.to/#self" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
+(add-statement *spoc* "http://ar.to/#self" "http://xmlns.com/foaf/0.1/name" "Arto Bendiken" "2010-07-30")
+
+(add-statement *spoc* "http://bhuga.net/#ben" "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" "http://xmlns.com/foaf/0.1/Person" "2010-07-30")
+(add-statement *spoc* "http://bhuga.net/#ben" "http://xmlns.com/foaf/0.1/name" "Ben Lavender" "2010-07-30")
+
+(graph-keyspace *spoc* "READMES/rdfspoc.dot")
 |#
