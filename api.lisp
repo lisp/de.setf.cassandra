@@ -274,7 +274,7 @@
   (:method ((key-slice cassandra_8.3.0:keyslice))
     (cassandra_8.3.0:keyslice-key key-slice)))
 
-(defgeneric key-slice-columns (key-slice)
+(defgeneric keyslice-columns (key-slice)
   (:method ((key-slice cassandra_2.1.0:keyslice))
     (cassandra_2.1.0:keyslice-columns key-slice))
   (:method ((key-slice cassandra_8.3.0:keyslice))

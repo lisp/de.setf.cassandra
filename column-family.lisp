@@ -21,6 +21,12 @@
 ;;;
 ;;; interface
 
+;;; alternative:
+;;; cf-get : returns a column
+;;; cf-get-string : returns a string value
+;;; cf-get-value : returns the raw value
+;;; fc-get-as 'type : 
+
 (defgeneric get-column (column-family key column-name)
   (:documentation "Given a COLUMN-FAMILY, KEY, and COLUMN-NAME, retrieve the designated attribute 'column'
  from the family's store. This returns the column struct, which comprises the name, value, and timestamp.
@@ -217,6 +223,7 @@
           :column column-name)))
 
 
+;;;!!! combine the list v/s atomic key into one method which allows also a null row key with a supercolumn key
 (defmethod get-columns ((family super-column-family) (keys cons) &rest args
                         &key start finish column-names reversed (count (column-family-slice-size family)))
   "Where the key is a list, the first element is the family key and the second is the syper-column key."
@@ -256,7 +263,7 @@
                                 :count count
                                 args)
         for key = (keyslice-key key-slice)
-        append (loop for cosc in (key-slice-columns key-slice)
+        append (loop for cosc in (keyslice-columns key-slice)
                      for sc = (columnorsupercolumn-super-column cosc)
                      collect (cons (list key (supercolumn-name sc))
                                    (supercolumn-columns sc)))))
@@ -270,7 +277,7 @@
            (dynamic-extent args))
   (flet ((do-key-slice (key-slice)
            (let ((key (keyslice-key key-slice)))
-             (loop for cosc = (key-slice-columns key-slice)
+             (loop for cosc = (keyslice-columns key-slice)
                    for sc = (columnorsupercolumn-super-column cosc)
                    do (funcall op  (cons (list key (supercolumn-name sc)) (supercolumn-columns sc)))))))
     (declare (dynamic-extent #'do-key-slice))

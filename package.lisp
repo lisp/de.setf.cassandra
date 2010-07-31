@@ -33,6 +33,16 @@
 
   (:export
    :column-family
+   :column-name
+   :column-value
+   :column-family-keyspace
+   :column-family-name
+   :column-family-slice-size
+   :column-family-type
+   :column-name
+   :columnorsupercolumn-column
+   :columnorsupercolumn-column-family
+   :columnorsupercolumn-super-column
    :batch-mutate
    :check-schema-agreement
    :describe-cluster-name
@@ -49,8 +59,15 @@
    :get-range-slices
    :get-slice
    :insert
+   :keyslice-columns
+   :keyslice-key
    :keyspace
+   :keyspace-clock
+   :keyspace-consistency-level
    :keyspace-description
+   :keyspace-keyspaces
+   :keyspace-name
+   :keyspace-version
    :login
    :map-columns
    :map-range-slices
@@ -63,6 +80,10 @@
    :scan-count
    :set-attribute
    :set-attributes
+   :set-keyspace-column-family
+   :super-column-family
+   :supercolumn-name
+   :supercolumn-columns
    :system-add-column-family
    :system-add-keyspace
    :system-drop-column-family
@@ -70,6 +91,7 @@
    :system-rename-column-family
    :system-rename-keyspace
    :truncate
+   :version-class-map
    ))
 
 

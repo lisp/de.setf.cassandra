@@ -54,7 +54,7 @@
    (version
     :initform nil :initarg :version
     :reader keyspace-version)
-   (version-map
+   (versin-class-map
     :initform '(("2.1.0" . cassandra_2.1.0:keyspace)
                 ("8.3.0" . cassandra_8.3.0:keyspace))
     :allocation :class
@@ -143,6 +143,29 @@
   (:method ((keyspace keyspace))
     (or (get-keyspace-keyspaces keyspace)
         (setf-keyspace-keyspaces (describe-keyspaces keyspace) keyspace))))
+
+
+(defgeneric set-keyspace-column-family (keyspace column-family slot-name &key class required)
+  (:method ((keyspace keyspace) (cf-name string) slot-name &key (class 'standard-column-family) required)
+    (let ((cf-description (rest (assoc cf-name (keyspace-description keyspace) :test #'string-equal))))
+      (if cf-description
+        (if (string-equal (rest (assoc "Type" cf-description :test #'string-equal))
+                          (ecase class
+                            (standard-column-family "Standard")
+                            (super-column-family "Super")))
+          (setf (slot-value keyspace slot-name) (make-instance class :name cf-name :keyspace keyspace))
+          (error "Column family class does not match: ~s; ~s; ~s."
+                 cf-name class (rest (assoc "Type" cf-description :test #'string-equal))))
+        (when required
+          (error "The column family is required: ~s." cf-name)))))
+  (:method ((keyspace keyspace) (cf column-family) slot-name &key (class 'standard-column-family) required)
+    (declare (ignore required))
+    (assert (typep cf class) () "Supplied column family is not the correct type: ~s: ~s: ~s." slot-name cf class)
+    (setf (slot-value keyspace slot-name) cf))
+  (:method ((keyspace keyspace) (cf null) slot-name &key class (required t))
+    (declare (ignore class))
+    (when required
+      (error "The column family is required: ~s." slot-name))))
 
 
 
