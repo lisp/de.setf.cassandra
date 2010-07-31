@@ -54,7 +54,7 @@
    (version
     :initform nil :initarg :version
     :reader keyspace-version)
-   (versin-class-map
+   (version-class-map
     :initform '(("2.1.0" . cassandra_2.1.0:keyspace)
                 ("8.3.0" . cassandra_8.3.0:keyspace))
     :allocation :class

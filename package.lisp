@@ -68,6 +68,7 @@
    :keyspace-keyspaces
    :keyspace-name
    :keyspace-version
+   :keyspace-version-class-map
    :login
    :map-columns
    :map-range-slices
