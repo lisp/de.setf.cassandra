@@ -29,7 +29,7 @@
   (:shadowing-import-from :thrift
                           :stream-write-string)
   (:shadowing-import-from :common-lisp
-                          :byte :set :list :map :type-of)
+                          :byte :set :list :map :type-of :float)
 
   (:export
    :column-family
