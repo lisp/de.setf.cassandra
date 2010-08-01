@@ -31,25 +31,6 @@
 
 (defparameter *c* (thrift:client *c-location*))
 
-
-(cassandra:describe-keyspaces *c*)
-;; => ("Keyspace1" "system")
-
-(cassandra:describe-cluster-name *c*)
-;; =>"Test Cluster"
-
-(cassandra:describe-version *c*)
-;; => "2.1.0"
-
-(loop for space in (cassandra:describe-keyspaces *c*)
-      collect (loop for key being each hash-key of (cassandra:describe-keyspace *c* space)
-                    using (hash-value value)
-                    collect (cons key
-                                  (loop for key being each hash-key of value
-                                        using (hash-value value)
-                                        collect (cons key value)))))
-
-
 (close *c*)
 
 (defgeneric describe-cassandra (location &optional stream)
@@ -74,7 +55,7 @@
 (defgeneric describe-keyspace-columns (keyspace &optional stream)
   (:method ((keyspace keyspace) &optional (stream *standard-output*))
     (let ((description (loop for key being each hash-key
-                             of (cassandra:describe-keyspace keyspace (keyspace-name keyspace))
+                             of (cassandra_2.1.0:describe-keyspace keyspace (keyspace-name keyspace))
                              using (hash-value value)
                              collect (cons key
                                            (loop for key being each hash-key of value

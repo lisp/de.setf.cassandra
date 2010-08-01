@@ -20,11 +20,7 @@
     :documentation "a column family for the index")
    (cache-family
     :reader store-cache-family
-    :documentation "a cache column family.")
-   (version-map
-    :initform '(("2.1.0" . cassandra-rdfrb-index-mediator_2.1.0)
-                ("8.3.0" . cassandra-rdfrb-index-mediator_8.3.0))
-    :allocation :class))
+    :documentation "a cache column family."))
 
   (:default-initargs :resources-family "Resources" :cache-family "Cache" :index-family "Index")
   (:documentation "A keyspace of the form used by an RDF mediator."))
