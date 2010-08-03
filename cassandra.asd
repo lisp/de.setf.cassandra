@@ -20,7 +20,7 @@
 
 
 (asdf:defsystem :de.setf.cassandra
-  :depends-on (:thrift
+  :depends-on (:org.apache.thrift
                :net.dardoria.uuid       ; order matters to get asdf to find them
                :com.github.ironclad)
   :description "A Common Lisp Cassandra interface based on the Thrift API"
