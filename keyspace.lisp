@@ -75,7 +75,7 @@
  In addition to the standard interface, it provides composite operators:
     insert-data
 
- The class abstract keyspace class is specialized as per the thruft api versions for access to the respective
+ The class abstract keyspace class is specialized as per the thrift api versions for access to the respective
  service versions:
  * cassandra_2.1.0:keyspace : 0.6 
  * cassandra_8.3.0:keyspace : 0.7"))
